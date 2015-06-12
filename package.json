@@ -1,0 +1,22 @@
+{
+	"name": "packer",
+	"version": "0.0.1",
+	"description": "Publish your VSO extensions.",
+	"author": "Microsoft Corporation",
+	"contributors": [{
+		"name": "Trevor Gau",
+		"email": "trgau@microsoft.com"
+	}],
+	"dependencies": {
+		"commander": "2.8.1",
+		"chalk": "1.0.0",
+		"adm-zip": "0.4.7",
+		"q": "1.4.1",
+		"xmlbuilder": "2.6.4",
+		"glob": "5.0.10"
+	},
+	"devDependencies": {
+		"typescript": "1.5.0-beta"
+	},
+	"preferGlobal": true
+}

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011" xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">
+  <Metadata>
+    <Identity Id="point-guide" Version="0.0.1" Language="en-US" Publisher="trgau" />
+    <DisplayName>Contribution Point Guide</DisplayName>
+    <Description xml:space="preserve">Shows all contribution points and their context objects.</Description>
+    <ReleaseNotes>Release notes</ReleaseNotes>
+    <Tags>Testing,Samples</Tags>
+    <VSOFlags></VSOFlags>
+  </Metadata>
+  <Installation>
+    <InstallationTarget Id="Microsoft.VSO" />
+  </Installation>
+  <Dependencies>
+  </Dependencies>
+  <Assets>
+    <Asset Type="Microsoft.VSO.Manifest" d:Source="File" Path="extension.vsomanifest" />
+    <Asset Type="Microsoft.VSO.LargeIcon" d:Source="File" Path="images/fabrikam-logo.png" />
+  </Assets>
+</PackageManifest>

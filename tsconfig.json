@@ -1,0 +1,13 @@
+{
+	"compilerOptions": {
+		"target": "es5",
+		"module": "commonjs",
+		"noImplicitAny": true,
+		"declaration": false,
+		"removeComments": true,
+		"outDir": "public/scripts"
+	},
+	"files": [
+		"src/scripts/app.ts"
+	]
+}
