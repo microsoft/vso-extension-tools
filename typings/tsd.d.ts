@@ -1,6 +1,5 @@
 
 /// <reference path="node/node.d.ts" />
-/// <reference path="colors/colors.safe.d.ts" />
 /// <reference path="commander/commander.d.ts" />
 /// <reference path="adm-zip/adm-zip.d.ts" />
 /// <reference path="q/Q.d.ts" />
