@@ -7,3 +7,4 @@
 /// <reference path="xmlbuilder/xmlbuilder.d.ts" />
 /// <reference path="glob/glob.d.ts" />
 /// <reference path="xml2js/xml2js.d.ts" />
+/// <reference path="minimatch/minimatch.d.ts" />

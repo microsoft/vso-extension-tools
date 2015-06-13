@@ -1,7 +1,6 @@
 /// <reference path="../../typings/tsd.d.ts" />
 
 import program = require("commander");
-import colors = require("colors/safe");
 import fs = require("fs");
 import package = require("./package");
 import Q = require("q");

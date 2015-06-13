@@ -6,24 +6,24 @@
   "bundle": "typings/tsd.d.ts",
   "installed": {
     "node/node.d.ts": {
-      "commit": "8ebc099072402b1a80d205c3eece59bed963ad87"
-    },
-    "colors/colors.d.ts": {
-      "commit": "8ebc099072402b1a80d205c3eece59bed963ad87"
+      "commit": "066819c65ff561ca109955e0b725c253e243f0a2"
     },
     "commander/commander.d.ts": {
-      "commit": "8ebc099072402b1a80d205c3eece59bed963ad87"
+      "commit": "066819c65ff561ca109955e0b725c253e243f0a2"
     },
     "q/Q.d.ts": {
-      "commit": "8ebc099072402b1a80d205c3eece59bed963ad87"
+      "commit": "066819c65ff561ca109955e0b725c253e243f0a2"
     },
     "chalk/chalk.d.ts": {
-      "commit": "8ebc099072402b1a80d205c3eece59bed963ad87"
+      "commit": "066819c65ff561ca109955e0b725c253e243f0a2"
     },
     "glob/glob.d.ts": {
       "commit": "066819c65ff561ca109955e0b725c253e243f0a2"
     },
     "xml2js/xml2js.d.ts": {
+      "commit": "066819c65ff561ca109955e0b725c253e243f0a2"
+    },
+    "minimatch/minimatch.d.ts": {
       "commit": "066819c65ff561ca109955e0b725c253e243f0a2"
     }
   }
