@@ -1,0 +1,34 @@
+{
+    "provider": {
+        "name": "Microsoft and the community"
+    },
+    "baseUri": "https://localhost",
+    "icon": "https://localhost/images/fabrikam-logo.png",
+    "contributions": {
+        "vss.code.web#sourceItemActions": [
+            {
+                "id": "showProperties",
+                "text": "Custom source item action",
+                "title": "vss.code.web#sourceItemActions",
+                "icon": "images/show-properties.png",
+                "group": "actions",
+                "uri": "main.html"
+            }
+        ],
+        "vss.code.web#sourceGridItemActions": [
+            {
+                "id": "showProperties",
+                "text": "Custom source grid item action",
+                "title": "vss.code.web#sourceGridItemActions",
+                "icon": "images/show-properties.png",
+                "group": "actions",
+                "uri": "main.html"
+            },
+            {
+                "id": "sourceGridDynamicMenu",
+                "group": "actions",
+                "uri": "main.html"
+            }
+        ]
+    }
+}

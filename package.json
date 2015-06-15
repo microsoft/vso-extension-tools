@@ -1,25 +1,29 @@
 {
-	"name": "packer",
-	"version": "0.0.1",
-	"description": "Publish your VSO extensions.",
-	"author": "Microsoft Corporation",
-	"contributors": [{
-		"name": "Trevor Gau",
-		"email": "trgau@microsoft.com"
-	}],
-	"dependencies": {
-		"commander": "2.8.1",
-		"chalk": "1.0.0",
-		"adm-zip": "0.4.7",
-		"q": "1.4.1",
-		"glob": "5.0.10",
-		"xml2js": "0.4.9",
-		"lodash": "3.9.3"
-	},
-	"devDependencies": {
-		"typescript": "1.5.0-beta",
-		"tsd": "0.6.1",
-		"mocha": "2.2.5"
-	},
-	"preferGlobal": true
+  "name": "packer",
+  "version": "0.0.1",
+  "description": "Publish your VSO extensions.",
+  "author": "Microsoft Corporation",
+  "contributors": [
+    {
+      "name": "Trevor Gau",
+      "email": "trgau@microsoft.com"
+    }
+  ],
+  "dependencies": {
+    "adm-zip": "0.4.7",
+    "chalk": "1.0.0",
+    "commander": "2.8.1",
+    "glob": "5.0.10",
+    "lodash": "3.9.3",
+    "q": "1.4.1",
+    "xml2js": "0.4.9"
+  },
+  "devDependencies": {
+	"fs-extra": "0.19.0",
+	"mocha": "2.2.5",
+	"tmp": "0.0.26",
+	"tsd": "0.6.1",
+    "typescript": "1.5.0-beta"
+  },
+  "preferGlobal": true
 }
