@@ -6315,6 +6315,21 @@ declare module _ {
             callback: ObjectIterator<any, boolean>,
             thisArg?: any): Picked;
     }
+    
+    //_.set
+    interface LoDashStatic {
+         /**
+         * Sets the property value of path on object. If a portion of path does not exist it is created.
+         * @param object The object to augment.
+         * @param path The path of the property to set.
+         * @param value The value to set
+         **/
+         set<Augmented, T>(
+             object: Augmented,
+             path: Array<any> | string,
+             value: T
+         ): Augmented;
+    }
 
     //_.transform
     interface LoDashStatic {

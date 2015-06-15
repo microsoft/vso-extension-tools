@@ -4,6 +4,20 @@
     },
     "baseUri": "https://localhost",
     "icon": "https://localhost/images/fabrikam-logo.png",
+    "publisher": "trgau",
+    "tags": ["Testing", "Samples"],
+    "VSOFlags": [],
+    "releaseNotes": "Release notes for the point guide.",
+    "assets": [
+        {
+            "type": "Microsoft.VSO.Manifest",
+            "path": "extension.vsomanifest"
+        },
+        {
+            "type": "Microsoft.VSO.LargeIcon",
+            "path": "images/fabrikam-log.png"
+        }
+    ],
     "contributions": {
         "vss.code.web#sourceItemActions": [
             {
@@ -16,14 +30,6 @@
             }
         ],
         "vss.code.web#sourceGridItemActions": [
-            {
-                "id": "showProperties",
-                "text": "Custom source grid item action",
-                "title": "vss.code.web#sourceGridItemActions",
-                "icon": "images/show-properties.png",
-                "group": "actions",
-                "uri": "main.html"
-            },
             {
                 "id": "sourceGridDynamicMenu",
                 "group": "actions",

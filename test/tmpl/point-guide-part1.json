@@ -3,4 +3,16 @@
     "version": "0.0.1",
     "name": "Contribution Point Guide (Sample)",
     "description": "Discover all the places (called contribution points) in Visual Studio Online you can extend, including hubs, toolbars, and context menus, and more.",
+    "contributions": {
+        "vss.code.web#sourceGridItemActions": [
+            {
+                "id": "showProperties",
+                "text": "Custom source grid item action",
+                "title": "vss.code.web#sourceGridItemActions",
+                "icon": "images/show-properties.png",
+                "group": "actions",
+                "uri": "main.html"
+            }
+        ]
+    }
 }
