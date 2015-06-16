@@ -4,7 +4,7 @@
     },
     "baseUri": "https://localhost",
     "icon": "https://localhost/images/fabrikam-logo.png",
-    "publisher": "trgau",
+    "publisher": "sean",
     "tags": ["Testing", "Samples"],
     "VSOFlags": [],
     "releaseNotes": "Release notes for the point guide.",
@@ -15,7 +15,7 @@
         },
         {
             "type": "Microsoft.VSO.LargeIcon",
-            "path": "images/fabrikam-log.png"
+            "path": "images/fabrikam-logo.png"
         }
     ],
     "contributions": {

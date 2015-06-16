@@ -34,6 +34,9 @@
     },
     "fs-extra/fs-extra.d.ts": {
       "commit": "230b346dad577c91af8db9f0a1db26697d2dd5bd"
+    },
+    "jszip/jszip.d.ts": {
+      "commit": "e18e130e2188348070f98d92b98c0ea481c4a086"
     }
   }
 }
