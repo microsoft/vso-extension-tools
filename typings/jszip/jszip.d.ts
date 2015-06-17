@@ -5,6 +5,16 @@
 
 interface JSZip {
     /**
+     * List of files in the archive
+     */
+    files: {[name: string]: JSZipObject};
+    
+    /**
+     * The comment of the archive
+     */
+    comment: string;
+    
+    /**
      * Get a file from the archive
      *
      * @param Path relative path to file

@@ -236,6 +236,30 @@ export module Package {
 		
 		private static VSO_MANIFEST_FILENAME: string = "extension.vsomanifest";
 		private static VSIX_MANIFEST_FILENAME: string = "extension.vsixmanifest";
+		private static CONTENT_TYPES_FILENAME: string = "[Content_Types].xml";
+		
+		/**
+		 * List of known file types to use in the [Content_Types].xml file in the VSIX package.
+		 */
+		private static CONTENT_TYPE_MAP: {[key: string]: string} = {
+			txt: "text/plain",
+			pkgdef: "text/plain",
+			xml: "text/xml",
+			vsixmanifest: "text/xml",
+			vsomanifest: "application/json",
+			json: "application/json",
+			htm: "text/html",
+			html: "text/html",
+			rtf: "application/rtf",
+			pdf: "application/pdf",
+			gif: "image/gif",
+			jpg: "image/jpg",
+			jpeg: "image/jpg",
+			tiff: "image/tiff",
+			vsix: "application/zip",
+			zip: "application/zip",
+			dll: "application/octet-stream"
+		};
 		
 		/**
 		 * constructor
@@ -283,7 +307,7 @@ export module Package {
 				assets.forEach((asset) => {
 					if (asset.$) {
 						if (asset.$.Type === "Microsoft.VSO.Manifest") {
-							return; // skip the manifest, it is added later.
+							return; // skip the vsomanifest, it is added later.
 						}
 						vsix.file((<string>asset.$.Path).replace(/\\/g, "/"), fs.readFileSync(path.join(root, asset.$.Path)));
 					}
@@ -309,6 +333,7 @@ export module Package {
 					vsix.file(VsixWriter.VSIX_MANIFEST_FILENAME, fs.readFileSync(vsixPath, "utf-8"));
 				});
 			}).then(() => {
+				vsix.file(VsixWriter.CONTENT_TYPES_FILENAME, this.genContentTypesXml(Object.keys(vsix.files)));
 				var buffer = vsix.generate({
 					type: "nodebuffer",
 					compression: "DEFLATE",
@@ -317,9 +342,47 @@ export module Package {
 				});
 				fs.writeFile(outPath, buffer);
 			});
-			
-			//return Q.nfcall(tmp.dir, {unsafeCleanup: true}).then(<any>((tmpPath: string, b:any, c:any) => {
 				
+		}
+		
+		/**
+		 * Generates the required [Content_Types].xml file for the vsix package.
+		 * This xml contains a <Default> entry for each different file extension
+		 * found in the package, mapping it to the appropriate MIME type.
+		 */
+		private genContentTypesXml(fileNames: string[]): string {
+			var contentTypes: any = {
+				Types: {
+					$: {
+						xmlns: "http://schemas.openxmlformats.org/package/2006/content-types"
+					},
+					Default: []
+				}
+			};
+			var uniqueExtensions = _.unique<string>(fileNames.map(f => _.trimLeft(path.extname(f))));
+			uniqueExtensions.forEach((ext) => {
+				var type = VsixWriter.CONTENT_TYPE_MAP[ext];
+				if (!type) {
+					type = "application/octet-stream";
+				}
+				contentTypes.Types.Default.push({
+					$: {
+						Extension: ext,
+						ContentType: type
+					}
+				});
+			});
+			var builder = new xml.Builder({
+				indent: "    ",
+				newline: require("os").EOL,
+				pretty: true,
+				xmldec: {
+					encoding: "utf-8",
+					standalone: null,
+					version: "1.0"
+				}
+			});
+			return builder.buildObject(contentTypes);
 		}
 	}
 	
@@ -359,21 +422,9 @@ export module Package {
 				vsoStream.end();
 			}).catch(console.error.bind(console));
 			
-			// vsoStream.write(JSON.stringify(this.vsoManifest, null, 4), "utf-8", function() { console.log("done"); vsoStream.end(); });
-			// var vsoPromise = Q.resolve("test");
-			
-			/*doctype?: any;
-            headless?: boolean;
-            indent?: string;
-            newline?: string;
-            pretty?: boolean;
-            renderOpts?: RenderOptions;
-            rootName?: string;
-            xmldec?: XMLDeclarationOptions;*/
-			
 			var builder = new xml.Builder({
 				indent: "    ",
-				newline: "\n",
+				newline: require("os").EOL,
 				pretty: true,
 				xmldec: {
 					encoding: "utf-8",
