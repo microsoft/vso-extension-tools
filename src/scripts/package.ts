@@ -11,7 +11,7 @@ import tmp = require("tmp");
 import xml = require("xml2js");
 import zip = require("jszip");
 
-export module Package {	
+export module Package {
 	/**
 	 * Combines the vsix and vso manifests into one object
 	 */
@@ -33,6 +33,11 @@ export module Package {
 	 */
 	export interface MergeSettings {
 		/**
+		 * Root of source manifests
+		 */
+		root: string;
+		
+		/**
 		 * List of globs for searching for partial manifests
 		 */
 		manifestGlobs: string[];
@@ -45,26 +50,22 @@ export module Package {
 	export class Merger {
 		private static DEFAULT_MERGE_SETTINGS_FILE: string = "merge-settings.json";
 		
-		private root: string;
 		private mergeSettings: MergeSettings;
 		
 		/**
 		 * constructor
 		 * @param string Root path for locating candidate manifests
 		 */
-		constructor(rootPath: string) {
-			this.root = rootPath;
-			this.parseSettings();
-		}	
-		
-		private parseSettings() {
+		constructor(rootPath: string, globs: string[]) {
 			this.mergeSettings = {
-				manifestGlobs: ["manifests/**/*.json"]
+				root: rootPath,
+				manifestGlobs: globs
 			}
 		}
 		
 		private gatherManifests(globPatterns: string[]): Q.Promise<string[]> {
-			var globs = globPatterns.map(pattern => path.join(this.root, pattern));
+			var globs = globPatterns.map(pattern => 
+				path.isAbsolute(pattern) ? pattern : path.join(this.mergeSettings.root, pattern));
 			return Q.all(globs.map(pattern => this.gatherManifestsFromGlob(pattern))).then((fileLists) => {
 				return _.unique(fileLists.reduce((a, b) => { return a.concat(b); }));
 			});
@@ -104,8 +105,8 @@ export module Package {
 				});
 				var defaultVsixManifestPath = path.join(require("app-root-path").path, "src", "tmpl", "default_vsixmanifest.json"); 
 				var vsixManifest: any = JSON.parse(fs.readFileSync(defaultVsixManifestPath, "utf8"));
-				vsixManifest.__meta_root = this.root;
-				var vsoManifest: any = {__meta_root: this.root};
+				vsixManifest.__meta_root = this.mergeSettings.root;
+				var vsoManifest: any = {__meta_root: this.mergeSettings.root};
 				return Q.all(manifestPromises).then((partials: any[]) => {
 					partials.forEach((partial) => {
 						// Transform asset paths to be relative to the root of all manifests.
@@ -119,11 +120,7 @@ export module Package {
 									throw "Paths in manifests must be relative.";
 								}
 								var absolutePath = path.join(path.dirname(partial.__origin), asset.path);
-								// console.log("Asset path transform. Abs: " + absolutePath + 
-								// 	", root: " + this.root + 
-								// 	", partial origin: " + partial.__origin + 
-								// 	", asset.path: " + asset.path);
-								asset.path = path.relative(this.root, absolutePath);
+								asset.path = path.relative(this.mergeSettings.root, absolutePath);
 							});
 						}
 						
@@ -340,7 +337,7 @@ export module Package {
 					compressionOptions: { level: 9 },
 					platform: process.platform
 				});
-				fs.writeFile(outPath, buffer);
+				fs.writeFile(path.resolve(outPath), buffer);
 			});
 				
 		}

@@ -5,10 +5,10 @@
 		"noImplicitAny": true,
 		"declaration": false,
 		"removeComments": true,
-		"outDir": "public/scripts"
+		"outDir": "public/"
 	},
 	"files": [
 		"src/scripts/app.ts",
-		"test/merge.ts"
+		"test/package.test.ts"
 	]
 }

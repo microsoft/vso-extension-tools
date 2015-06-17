@@ -1,0 +1,5 @@
+{
+    "root": ".\\test\\tmpl",
+    "outputPath": "C:\\temp\\myvsix.vsix",
+    "manifestGlobs": ["*.json"]
+}
