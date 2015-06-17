@@ -9,7 +9,7 @@ import Q = require("q");
 import stream = require("stream");
 import tmp = require("tmp");
 
-module MergeTests {
+module PackageTests {
 	export function runTests() {
 		describe("Merger", () => {
 			describe("#merge", () => {
@@ -77,7 +77,7 @@ module MergeTests {
 	}
 }
 
-MergeTests.runTests();
+PackageTests.runTests();
 
 
 
