@@ -37,6 +37,12 @@
     },
     "jszip/jszip.d.ts": {
       "commit": "e18e130e2188348070f98d92b98c0ea481c4a086"
+    },
+    "request/request.d.ts": {
+      "commit": "43b6bf88758852b9ab713a9b011487f047f94f4e"
+    },
+    "form-data/form-data.d.ts": {
+      "commit": "43b6bf88758852b9ab713a9b011487f047f94f4e"
     }
   }
 }

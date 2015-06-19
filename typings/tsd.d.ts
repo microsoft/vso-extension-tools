@@ -10,3 +10,5 @@
 /// <reference path="lodash/lodash.d.ts" />
 /// <reference path="fs-extra/fs-extra.d.ts" />
 /// <reference path="jszip/jszip.d.ts" />
+/// <reference path="request/request.d.ts" />
+/// <reference path="form-data/form-data.d.ts" />
