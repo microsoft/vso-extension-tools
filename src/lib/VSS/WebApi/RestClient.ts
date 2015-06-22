@@ -163,7 +163,7 @@ export class VssHttpClient {
     }
     
     public static getClient<T extends VssHttpClient>(type: new (baseUrl: string) => T, baseUrl: string, authToken?: string): T {
-        var client = new type(baseUrl);
+        let client = new type(baseUrl);
         if (authToken) {
             client.auth = {
                 user: authToken,

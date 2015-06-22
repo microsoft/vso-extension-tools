@@ -2,7 +2,7 @@
     "namespace": "samples.point-guide",
     "version": "0.0.1",
     "name": "Contribution Point Guide (Sample)",
-    "description": "Discover all the places (called contribution points) in Visual Studio Online you can extend, including hubs, toolbars, and context menus, and more.",
+    "description": "Discover ALL the places (called contribution points) in Visual Studio Online you can extend, including hubs, toolbars, and context menus, and more.",
     "categories": ["Testing"],
     "contributions": {
         "vss.code.web#sourceGridItemActions": [
