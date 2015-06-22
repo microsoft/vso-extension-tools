@@ -13,6 +13,7 @@ This app requires [NodeJS](http://nodejs.org), NPM (included with the NodeJS ins
 
 ### Prep your manifest(s)
 This tool will merge any number of manifest files (all in JSON format) into the required .vsomanifest and .vxismanifest files. If you are using this tool with an extension for the first time, you may need to add a few things to your manifest:
+
 1. Add `"publisher": "yourpublishername"` to the manifest. "yourpublishername" should be replaced by the **same name as the publisher you created in the Gallery**.
 2. Add assets that go into the VSIX package. For example: 
 ```json
@@ -23,7 +24,7 @@ This tool will merge any number of manifest files (all in JSON format) into the 
         }
     ],
 ```
-**Note**: Paths should be relative to the manifest file.
+**Note**: Paths should be relative to the manifest file.   
 3. Additionally, you may want to add properties for `"tags"`, `"categories"`, and `"VSOFlags"`, each of which should be a list of strings.
 
 ## Run
