@@ -96,7 +96,9 @@ module App {
 			return doPublish(vsixPath, publishSettingsPath, options);
 		}).then(() => {
 			console.log("Done!");
-		}).catch(console.error.bind(console));
+		}).catch((error) => {
+			console.error("Error: " + error);
+		});
 	}
 }
 

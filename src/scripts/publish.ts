@@ -43,10 +43,8 @@ export module Publish {
 				if (extensionId && extensionPublisher) {
 					return {id: extensionId, publisher: extensionPublisher};
 				} else {
-					throw "Could not locate both the extension id and publisher in vsix manfiest!";
+					throw "Could not locate both the extension id and publisher in vsix manfiest! Ensure your manifest includes both a namespace and a publisher property.";
 				}
-			}).catch<{id: string, publisher: string}>(() => {
-				return null;
 			});
 		}
 		
@@ -78,21 +76,23 @@ export module Publish {
 					console.log("It is, update the extension");
 					return this.galleryClient.updateExtension(extPackage, publishedExtInfo.publisher, publishedExtInfo.id).then(() => {
 						
-					}).catch(() => {
-						console.log("There was an error updating the extension by id.");
-						return null;
+					}).catch((e) => {
+						if (_.get(e, "body.typeKey") === "PublisherDoesNotExistException") {
+							throw "The publisher does not exist.";
+						}
+						throw e;
 					});
 				} else {
 					console.log("It isn't, create a new extension.");
 					return this.galleryClient.createExtension(extPackage).then(() => {
 						
-					}).catch(() => {
-						console.log("There was an error publishing the extension.");
-						return null;
+					}).catch((e) => {
+						if (_.get(e, "body.typeKey") === "PublisherDoesNotExistException") {
+							throw "The publisher does not exist.";
+						}
+						throw e;
 					});
 				}
-			}).catch(() => {
-				return null;
 			});
 		}
 	}
