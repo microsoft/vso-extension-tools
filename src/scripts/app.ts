@@ -69,7 +69,7 @@ module App {
 					return outPath;
 				}).catch<string>(console.error.bind(console));
 			}).catch<string>(console.error.bind(console));
-		});
+		}).catch<string>(console.error.bind(console));
 	}
 	
 	function doPublish(vsixPath: string, publishSettingsPath: string, options: any): Q.Promise<any> {
@@ -100,6 +100,12 @@ module App {
 			console.error("Error: " + error);
 		});
 	}
+}
+
+var version = process.version;
+if (parseInt(version.split(".")[1], 10) < 12) {
+	console.log("Please upgrade to NodeJS v0.12.x or higher");
+	process.exit(-1);
 }
 
 program
