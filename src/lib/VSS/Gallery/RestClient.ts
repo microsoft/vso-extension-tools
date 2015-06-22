@@ -14,9 +14,9 @@
 
 "use strict";
 
-import Contracts = require("VSS/Gallery/Contracts");
-import VSS_WebApi = require("VSS/WebApi/RestClient");
-import VSS_WebApi_Constants = require("VSS/WebApi/Constants");
+import Contracts = require("../Gallery/Contracts");
+import VSS_WebApi = require("../WebApi/RestClient");
+import VSS_WebApi_Constants = require("../WebApi/Constants");
 
 export class GalleryHttpClient extends VSS_WebApi.VssHttpClient {
 

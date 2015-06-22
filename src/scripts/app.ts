@@ -10,49 +10,93 @@ import Q = require("q");
 import tmp = require("tmp");
 
 module App {
-	export function createPackage(settingsPath: string, options: any) {
-		let root = process.cwd();
-		let globs = ["**/*-manifest.json"];
-		let outPath = process.cwd();
+	function getOptions(settingsPath: string, options: any, defaults: {[key: string]: any} = {}): {[key: string]: any} {
 		if (settingsPath) {
-			let packageSettings = JSON.parse(fs.readFileSync(settingsPath, "utf-8"));
-			root = packageSettings.root;
-			globs = _.isArray(packageSettings.manifestGlobs) ? packageSettings.manifestGlobs : [packageSettings.manifestGlobs];
-			outPath = packageSettings.outputPath;
+			let settingsJson = JSON.parse(fs.readFileSync(settingsPath, "utf-8"));
+			Object.keys(settingsJson).forEach((key) => {
+				defaults[key] = settingsJson[key];
+			});
 		}
-		// Passed in options trump defaults & JSON configuration
-		root = path.resolve(options.root || root);
-		globs = (options.manifestGlob ? [options.manifestGlob] : globs).map(glob => path.join(root, glob));
-		outPath = options.outputPath || outPath;
+		Object.keys(defaults).forEach((key) => {
+			if (options[key]) {
+				defaults[key] = options[key];
+			}
+		});
+		return defaults;
+	}
+	
+	export function createPackage(settingsPath: string, options: any): Q.Promise<string> {
+		let processedOptions = getOptions(settingsPath, options, {
+			root: process.cwd(),
+			manifestGlobs: ["**/*-manifest.json"],
+			outputPath: process.cwd() 
+		});
+		
+		if (options.manifestGlob) {
+			processedOptions["manifestGlobs"] = options.manifestGlob;
+		}
+		if (typeof processedOptions["manifestGlobs"] === "string") {
+			processedOptions["manifestGlobs"] = [processedOptions["manifestGlobs"]]; 
+		}
+		processedOptions["root"] = path.resolve(processedOptions["root"]);
+		processedOptions["manifestGlobs"] = processedOptions["manifestGlobs"].map(g => path.join(processedOptions["root"], g));
+		
+		console.log("Creating a package with these options: \n" + JSON.stringify(processedOptions, null, 4));
 		
 		// Replace {tmp} at beginning of outPath with a temporary directory path
 		let outPathPromise: Q.Promise<string>;
-		if (outPath.indexOf("{tmp}") === 0) {
+		if (processedOptions["outputPath"].indexOf("{tmp}") === 0) {
 			outPathPromise = Q.Promise<string>((resolve, reject, notify) => {
 				tmp.dir({unsafeCleanup: true}, (err, tmpPath, cleanupCallback) => {
 					if (err) {
 						reject(err);
 					}
-					resolve(outPath.replace("{tmp}", tmpPath));
+					resolve(processedOptions["outPath"].replace("{tmp}", tmpPath));
 				});
 			})
 		} else {
-			outPathPromise = Q.resolve<string>(outPath);
+			outPathPromise = Q.resolve<string>(processedOptions["outputPath"]);
 		}
-		outPathPromise.then((outPath) => {		
-			let merger = new package.Package.Merger(root, globs);
-			merger.merge().then((manifests) => {
+		return outPathPromise.then((outPath) => {
+			let merger = new package.Package.Merger(processedOptions["root"], processedOptions["manifestGlobs"]);
+			console.log("Beginning merge of partial manifests.");
+			return merger.merge().then((manifests) => {
+				console.log("Merge completed.");
 				let vsixWriter = new package.Package.VsixWriter(manifests.vsoManifest, manifests.vsixManifest);
-				
-				vsixWriter.writeVsix(outPath).then(() => {
-					
-				}).catch(console.error.bind(console));
-			});
+				console.log("Beginning writing VSIX");
+				return vsixWriter.writeVsix(outPath).then(() => {
+					console.log("VSIX written to: " + outPath);
+					return outPath;
+				}).catch<string>(console.error.bind(console));
+			}).catch<string>(console.error.bind(console));
 		});
 	}
 	
-	export function publish(publishSettingsPath: string, packageSettingsPath: string, options: any) {
+	function doPublish(vsixPath: string, publishSettingsPath: string, options: any): Q.Promise<any> {
+		let publishOptions = getOptions(publishSettingsPath, options);
+		if (!publishOptions["token"] || !publishOptions["galleryUrl"]) {
+			throw "Could not find gallery URL or personal access token!";
+		}
 		
+		let publisher = new publish.Publish.PackagePublisher(publishOptions["galleryUrl"], publishOptions["token"]);
+		return publisher.publish(vsixPath);
+	}
+	
+	export function publishVsix(publishSettingsPath: string, packageSettingsPath: string, options: any): Q.Promise<any> {
+		return Q.Promise<string>((resolve, reject, notify) => {
+			if (options.vsix) {
+				console.log("VSIX was manually specified. Skipping generation.");
+				resolve(options.vsix);
+			} else {
+				console.log("Generating VSIX from settings at: " + path.resolve(packageSettingsPath));
+				resolve(createPackage(packageSettingsPath, options));
+			}
+		}).then((vsixPath) => {
+			console.log("VSIX to publish is located at: " + vsixPath);
+			return doPublish(vsixPath, publishSettingsPath, options);
+		}).then(() => {
+			console.log("Done!");
+		}).catch(console.error.bind(console));
 	}
 }
 
@@ -75,6 +119,6 @@ program
 	.option("-r, --root <root>", "Specify the root for files in your vsix package. [.]")
 	.option("-m, --manifest-glob <glob>", "Specify the pattern for manifest files to join. [**/*-manifest.json]")
 	.option("-o, --output-path <output>", "Specify the path and file name of the generated vsix. [..]")
-	.action(App.publish);
-	
+	.action(App.publishVsix);
+
 program.parse(process.argv);

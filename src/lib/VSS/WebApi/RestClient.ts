@@ -1,10 +1,11 @@
 
+import _ = require("lodash");
 import http = require("http");
 import Q = require("q");
 import Querystring = require("querystring");
 import request = require("request");
-import Serialization = require("VSS/Serialization");
-import WebApi_Contracts = require("VSS/WebApi/Contracts");
+import Serialization = require("../Serialization");
+import WebApi_Contracts = require("./Contracts");
 
 /**
  * Metadata for deserializing an enum field on a contract/type
@@ -154,10 +155,23 @@ export class VssHttpClient {
     private _locationsByAreaPromises: { [areaName: string]: Q.Promise<VssApiResourceLocationLookup>; };
 
     protected rootRequestPath: string;
+    private auth: {user?: string, pass?: string, sendImmediately?: boolean, bearer?: string};
 
     constructor(rootRequestPath: string) {
         this.rootRequestPath = rootRequestPath;
         this._locationsByAreaPromises = {};
+    }
+    
+    public static getClient<T extends VssHttpClient>(type: new (baseUrl: string) => T, baseUrl: string, authToken?: string): T {
+        var client = new type(baseUrl);
+        if (authToken) {
+            client.auth = {
+                user: authToken,
+                pass: "",
+                sendImmediately: true
+            };
+        }
+        return client;
     }
 
     /**
@@ -170,6 +184,11 @@ export class VssHttpClient {
     public _beginRequest<T>(requestParams: VssApiResourceRequestParams, useAjaxResult: boolean = false): Q.Promise<T> {
 
         let deferred = Q.defer<T>();
+        
+        // Remove any query params whose value is undefined
+        if (_.isObject(requestParams.queryParams)) {
+            requestParams.queryParams = _.omit<{[key: string]: any}, {[key: string]: any}>(requestParams.queryParams, key => requestParams.queryParams[key] === undefined);
+        }
 
         if (requestParams.routeTemplate) {
             let requestUrl = this.getRequestUrl(requestParams.routeTemplate, requestParams.area, requestParams.resource, requestParams.routeValues, requestParams.queryParams);
@@ -196,7 +215,9 @@ export class VssHttpClient {
     private _beginRequestToResolvedUrl<T>(requestUrl: string, apiVersion: string, requestParams: VssApiResourceRequestParams, deferred: Q.Deferred<T>, useAjaxResult: boolean) {
 
         let requestOptions: request.Options = {
-            uri: requestUrl
+            url: requestUrl,
+            auth: this.auth,
+            proxy: "http://127.0.0.1:8888"
         };
 
         let acceptType: string;
@@ -219,13 +240,14 @@ export class VssHttpClient {
             "Accept": acceptType + (apiVersion ? (";api-version=" + apiVersion) : ""),
             "Content-Type": "application/json"
         }, requestParams.customHeaders);
+        
+        requestOptions["json"] = requestData;
 
         let promise = <Q.Promise<T>>this._issueRequest(requestOptions);
-
         promise.spread((response, body) => {
-                let resolvedData = Serialization.ContractSerializer.deserialize(body, requestParams.responseType, false, requestParams.responseIsCollection);
-                deferred.resolve(resolvedData);
-            }, deferred.reject);
+            let resolvedData = Serialization.ContractSerializer.deserialize(body, requestParams.responseType, false, requestParams.responseIsCollection);
+            deferred.resolve(resolvedData);
+        }, deferred.reject);
     }
 
     /**
@@ -247,12 +269,18 @@ export class VssHttpClient {
      * @param useAjaxResult If true, textStatus and jqXHR are added to the success callback. In this case, spread (instead of then) needs to be used.
      */
     public _issueRequest(requestOptions: request.Options): Q.Promise<any> {
+        // console.log("Issuing an ajax request with the following options: \n" + JSON.stringify(requestOptions, null, 4));
         return Q.Promise<[http.IncomingMessage, string]>((resolve, reject, notify) => {
-            request.post(requestOptions, (error, response, body) => {
+            request(requestOptions, (error, response, body) => {
                 if (error) {
                     reject(error);
                 }
-                resolve([response, body]);
+                // console.log("Got response (" + response.statusCode + "): \n" + JSON.stringify(response.headers, null, 4));
+                if (Math.floor(response.statusCode / 100) !== 2) {
+                    reject(response);
+                } else {
+                    resolve([response, body]);
+                }
             });
         });
     }

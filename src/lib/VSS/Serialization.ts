@@ -1,4 +1,6 @@
 
+import _ = require("lodash");
+
 export interface IWebApiArrayResult {
     count: number;
     value: any[];

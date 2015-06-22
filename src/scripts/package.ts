@@ -134,6 +134,16 @@ export module Package {
 			}).catch<SplitManifest>(console.error.bind(console));
 		}
 		
+		private handleDelimitedList(value: any, object: any, path: string, delimiter: string = ",") {
+			if (_.isString(value)) {
+				value = value.split(delimiter);
+				_.remove(value, v => v === "");
+			}
+			var items = _.get(object, path, "").split(delimiter);
+			_.remove(items, v => v === "");
+			_.set(object, path, _.uniq(items.concat(value)).join(delimiter));
+		}
+		
 		private mergeKey(key: string, value: any, vsoManifest: any, vsixManifest: any) {
 			switch(key.toLowerCase()) {
 				case "namespace":
@@ -156,6 +166,17 @@ export module Package {
 					vsoManifest.description = value;
 					vsixManifest.PackageManifest.Metadata[0].Description[0]._ = value;
 					break;
+				case "public": 
+					if (typeof value === "boolean") {
+						let flags = _.get(vsixManifest, "PackageManifest.Metadata[0].VSOFlags[0]", "").split(",");
+						_.remove(flags, v => v === "");
+						if (value === false) {
+							flags.push("Private");
+						}
+						_.set(vsixManifest, "PackageManifest.Metadata[0].VSOFlags[0]", _.uniq(flags).join(","));
+						vsoManifest.__meta_public = value;
+					}
+					break;
 				case "publisher":
 					vsixManifest.PackageManifest.Metadata[0].Identity[0].$.Publisher = value;
 					break;
@@ -163,22 +184,13 @@ export module Package {
 					vsixManifest.PackageManifest.Metadata[0].ReleaseNotes = [value];
 					break;
 				case "tags":
-					if (_.isArray(value)) {
-						value = (<Array<string>>value).join(",");
-					}
-					vsixManifest.PackageManifest.Metadata[0].Tags = [value];
+					this.handleDelimitedList(value, vsixManifest, "PackageManifest.Metadata[0].Tags[0]");
 					break;
 				case "vsoflags":
-					if (_.isArray(value)) {
-						value = (<Array<string>>value).join(",");
-					}
-					vsixManifest.PackageManifest.Metadata[0].VSOFlags = [value];
+					this.handleDelimitedList(value, vsixManifest, "PackageManifest.Metadata[0].VSOFlags[0]");
 					break;
 				case "categories":
-					if (_.isArray(value)) {
-						value = (<Array<string>>value).join(",");
-					}
-					vsixManifest.PackageManifest.Metadata[0].Categories = [value];
+					this.handleDelimitedList(value, vsixManifest, "PackageManifest.Metadata[0].Categories[0]");
 					break;
 				case "baseuri":
 					// Assert string value
@@ -219,7 +231,7 @@ export module Package {
 							});
 						});
 					}
-					break;		
+					break;
 			}
 		}	 		
 	}
@@ -285,6 +297,16 @@ export module Package {
 				Type: "Microsoft.VSO.Manifest",
 				Path: VsixWriter.VSO_MANIFEST_FILENAME
 			}});
+			
+			// Default to a private extension
+			if (!this.vsoManifest.__meta_public) {
+				let flags: any = _.get(this.vsixManifest, "PackageManifest.Metadata[0].VSOFlags[0]", "").split(",");
+				_.remove(flags, v => v === "");
+				flags.push("Private");
+				_.set(this.vsixManifest, "PackageManifest.Metadata[0].VSOFlags", _.uniq(flags).join(","));	
+			}
+			
+			console.log("Manifests finished prepping.");
 		}
 		
 		/**
@@ -337,7 +359,8 @@ export module Package {
 					compressionOptions: { level: 9 },
 					platform: process.platform
 				});
-				fs.writeFile(path.resolve(outPath), buffer);
+				console.log("Writing vsix to: " + outPath);
+				return Q.nfcall(fs.writeFile, path.resolve(outPath), buffer);
 			});
 				
 		}
