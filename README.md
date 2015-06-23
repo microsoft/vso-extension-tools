@@ -24,7 +24,7 @@ This tool will merge any number of manifest files (all in JSON format) into the 
         }
     ],
 ```
-**Note**: Paths should be relative to the manifest file.   
+**Note**: Paths should be relative to the manifest file.
 3. Additionally, you may want to add properties for `"tags"`, `"categories"`, and `"VSOFlags"`, each of which should be a list of strings.
 
 ## Run
@@ -67,7 +67,7 @@ Alternatively, you can use the following command-line arguments in lieu of the s
 **Note**: When using command-line arguments, only one glob can be specified for finding manifests
 
 ### Publish
-This command publishes a VSIX file to the Gallery. The VSIX can either be generated (default) or specified manually. TO use the publish command, you must first create a publish_settings.json file containing the following key-value pairs:
+This command publishes a VSIX file to the Gallery. The VSIX can either be generated (default) or specified manually. To use the publish command, you must first create a publish_settings.json file containing the following key-value pairs:
 ```typescript
 {
     /**
