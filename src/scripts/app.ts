@@ -2,12 +2,15 @@
 
 import _ = require("lodash");
 import fs = require("fs");
+import logger = require("tracer");
 import package = require("./package");
 import path = require("path");
 import program = require("commander");
 import publish = require("./publish");
 import Q = require("q");
 import tmp = require("tmp");
+
+var log = logger.console();
 
 module App {
 	function getOptions(settingsPath: string, options: any, defaults: {[key: string]: any} = {}): {[key: string]: any} {
@@ -17,15 +20,18 @@ module App {
 				defaults[key] = settingsJson[key];
 			});
 		}
-		Object.keys(defaults).forEach((key) => {
-			if (options[key]) {
-				defaults[key] = options[key];
-			}
-		});
+		if (_.isObject(options)) {
+			Object.keys(defaults).forEach((key) => {
+				if (options[key]) {
+					defaults[key] = options[key];
+				}
+			});	
+		}
 		return defaults;
 	}
 	
 	export function createPackage(settingsPath: string, options: any): Q.Promise<string> {
+		
 		let processedOptions = getOptions(settingsPath, options, {
 			root: process.cwd(),
 			manifestGlobs: ["**/*-manifest.json"],
@@ -83,6 +89,7 @@ module App {
 	}
 	
 	export function publishVsix(publishSettingsPath: string, packageSettingsPath: string, options: any): Q.Promise<any> {
+		
 		return Q.Promise<string>((resolve, reject, notify) => {
 			if (options.vsix) {
 				console.log("VSIX was manually specified. Skipping generation.");
@@ -97,8 +104,21 @@ module App {
 		}).then(() => {
 			console.log("Done!");
 		}).catch((error) => {
-			console.error("Error: " + error);
+			var errStr = _.isString(error) ? error : JSON.stringify(error, null, 4);
+			console.error("Error: " + errStr);
 		});
+	}
+	
+	export function createPublisher(publishSettingsPath: string, name: string, displayName: string, description: string): Q.Promise<any> {
+		var options = getOptions(publishSettingsPath, null);
+		let pubManager = new publish.Publish.PublisherManager(options["galleryUrl"], options["token"]);
+		return pubManager.createPublisher(name, displayName, description).catch(console.error.bind(console));
+	}
+	
+	export function deletePublisher(publishSettingsPath: string, publisherName: string): Q.Promise<any> {
+		var options = getOptions(publishSettingsPath, null);
+		let pubManager = new publish.Publish.PublisherManager(options["galleryUrl"], options["token"]);
+		return pubManager.deletePublisher(publisherName).catch(console.error.bind(console));
 	}
 }
 
@@ -110,6 +130,7 @@ if (parseInt(version.split(".")[1], 10) < 12) {
 
 program
 	.version("0.0.1")
+	.option("--fiddler", "Use the fiddler proxy for REST API calls.")
 	.usage("command [options]");
 
 program
@@ -128,5 +149,15 @@ program
 	.option("-m, --manifest-glob <glob>", "Specify the pattern for manifest files to join. [**/*-manifest.json]")
 	.option("-o, --output-path <output>", "Specify the path and file name of the generated vsix. [..]")
 	.action(App.publishVsix);
+	
+program
+	.command("create-publisher <publish_settings_path> <name> <display_name> <description>")
+	.description("Create a publisher")
+	.action(App.createPublisher);
+	
+program
+	.command("delete-publisher <publish_settings_path> <publisher_name>")
+	.description("Delete a publisher")
+	.action(App.deletePublisher);
 
 program.parse(process.argv);

@@ -1,6 +1,7 @@
 /// <reference path="../../typings/tsd.d.ts" />
 
 import _ = require("lodash");
+import errHandler = require("./errorhandler");
 import fs= require("fs");
 import GalleryClient = require("../lib/VSS/Gallery/RestClient");
 import GalleryContracts = require("../lib/VSS/Gallery/Contracts");
@@ -11,15 +12,72 @@ import zip = require("jszip");
 
 export module Publish {
 	
-	export class PackagePublisher {
-		private baseUrl: string;
-		private authToken: string;
-		private galleryClient: GalleryClient.GalleryHttpClient;
+	class GalleryBase {
+		protected token: string;
+		protected galleryUrl: string;
+		protected galleryClient: GalleryClient.GalleryHttpClient;
 		
+		/**
+		 * Constructor
+		 * @param string baseUrl of the Gallery
+		 * @param string personal access token with all accounts and all scopes access
+		 */
 		constructor(baseUrl: string, token: string) {
-			this.baseUrl = baseUrl;
-			this.authToken = token;
-			this.galleryClient = RestClient.VssHttpClient.getClient(GalleryClient.GalleryHttpClient, baseUrl, token);
+			this.galleryUrl = baseUrl;
+			this.token = token;
+			this.galleryClient = RestClient.VssHttpClient.getClient(GalleryClient.GalleryHttpClient, this.galleryUrl, this.token);
+		}
+	}
+	
+	/**
+	 * Class that handles creating and deleting publishers
+	 */
+	export class PublisherManager extends GalleryBase {
+		
+		/**
+		 * Constructor
+		 * @param string baseUrl of the Gallery
+		 * @param string personal access token with all accounts and all scopes access
+		 */
+		constructor(baseUrl: string, token: string) {
+			super(baseUrl, token);
+		}
+		
+		/**
+		 * Create a a publisher with the given name, displayName, and description
+		 * @param string Publisher's unique name
+		 * @param string Publisher's display name
+		 * @param string Publisher description
+		 * @return Q.Promise that is resolved when publisher is created
+		 */
+		public createPublisher(name: string, displayName: string, description: string): Q.Promise<any> {
+			return this.galleryClient.createPublisher(<GalleryContracts.Publisher>{
+				publisherName: name,
+				displayName: displayName,
+				longDescription: description,
+				shortDescription: description
+			}).catch(errHandler.err);
+		}
+		
+		/**
+		 * Delete the publisher with the given name
+		 * @param string Publisher's unique name
+		 * @return Q.promise that is resolved when publisher is deleted
+		 */
+		public deletePublisher(name: string): Q.Promise<any> {
+			return this.galleryClient.deletePublisher(name).catch(errHandler.err);
+		}
+	}
+	
+	export class PackagePublisher extends GalleryBase {
+		
+		/**
+		 * Constructor
+		 * @param string baseUrl of the Gallery
+		 * @param string personal access token with all accounts and all scopes access
+		 */
+		constructor(baseUrl: string, token: string) {
+			super(baseUrl, token);
 		}
 		
 		private getExtensionIdAndPublisher(vsixPath: string): Q.Promise<{id: string, publisher: string}> {
@@ -75,6 +133,11 @@ export module Publish {
 			});
 		}
 		
+		/**
+		 * Publish the VSIX extension given by vsixPath
+		 * @param string path to a VSIX extension to publish
+		 * @return Q.Promise that is resolved when publish is complete
+		 */
 		public publish(vsixPath: string): Q.Promise<any> {
 			
 			let extPackage: GalleryContracts.ExtensionPackage = {
@@ -89,22 +152,12 @@ export module Publish {
 					console.log("It is, update the extension");
 					return this.galleryClient.updateExtension(extPackage, publishedExtInfo.publisher, publishedExtInfo.id).then(() => {
 						
-					}).catch((e) => {
-						if (_.get(e, "body.typeKey") === "PublisherDoesNotExistException") {
-							throw "The publisher does not exist.";
-						}
-						throw e;
-					});
+					}).catch(errHandler.err);
 				} else {
 					console.log("It isn't, create a new extension.");
 					return this.galleryClient.createExtension(extPackage).then(() => {
 						
-					}).catch((e) => {
-						if (_.get(e, "body.typeKey") === "PublisherDoesNotExistException") {
-							throw "The publisher does not exist.";
-						}
-						throw e;
-					});
+					}).catch<any>(errHandler.err);
 				}
 			});
 		}

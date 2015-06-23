@@ -1,6 +1,7 @@
 
 import _ = require("lodash");
 import http = require("http");
+import program = require("commander");
 import Q = require("q");
 import Querystring = require("querystring");
 import request = require("request");
@@ -216,9 +217,11 @@ export class VssHttpClient {
 
         let requestOptions: request.Options = {
             url: requestUrl,
-            auth: this.auth,
-            proxy: "http://127.0.0.1:8888"
+            auth: this.auth            
         };
+        if (program["fiddler"]) {
+            requestOptions.proxy = "http://127.0.0.1:8888";
+        }
 
         let acceptType: string;
 
