@@ -113,23 +113,7 @@ export module Publish {
 						return extInfo;
 					}
 					return null;
-				}).catch<{id: string, publisher: string}>((r) => {
-					let body = r.body;
-					if (_.isString(body)) {
-						try {
-							if (JSON.parse(body).typeKey === "ExtensionDoesNotExistException") {
-								return null;
-							}
-						} catch (e) {
-							
-						}
-					} else {
-						if (body.typeKey === "ExtensionDoesNotExistException") {
-							return null;
-						}
-					}
-					throw r.body || r;
-				});
+				}).catch<{id: string, publisher: string}>(errHandler.err);
 			});
 		}
 		
