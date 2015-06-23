@@ -6,6 +6,7 @@ import fs = require("fs");
 import glob = require("glob");
 import path = require("path");
 import Q = require("q");
+import settings = require("./settings");
 import stream = require("stream");
 import tmp = require("tmp");
 import xml = require("xml2js");
@@ -56,10 +57,10 @@ export module Package {
 		 * constructor
 		 * @param string Root path for locating candidate manifests
 		 */
-		constructor(rootPath: string, globs: string[]) {
+		constructor(settings: settings.PackageSettings) {
 			this.mergeSettings = {
-				root: rootPath,
-				manifestGlobs: globs
+				root: settings.root,
+				manifestGlobs: settings.manifestGlobs
 			}
 		}
 		

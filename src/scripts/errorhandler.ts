@@ -10,7 +10,7 @@ export function err(obj): any {
 	}
 	let statusCode: number = errorAsObj.statusCode;	
 	if (statusCode === 401) {
-		throw "Received response 401 (Not Authorized). Check that your personal access token is correct.";
+		throw "Received response 401 (Not Authorized). Check that your personal access token is correct and hasn't expired.";
 	}
 	let errorBodyObj = errorAsObj.body;
 	if (errorBodyObj) {

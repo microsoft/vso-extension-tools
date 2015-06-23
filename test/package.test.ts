@@ -6,6 +6,7 @@ import fsx = require("fs-extra");
 import package = require("../src/scripts/package");
 import path = require("path");
 import Q = require("q");
+import settings = require("../src/scripts/settings");
 import stream = require("stream");
 import tmp = require("tmp");
 
@@ -15,7 +16,7 @@ module PackageTests {
 			describe("#merge", () => {
 				it("Should merge all found manifests into two JS objects", (done) => {
 					withManifests((tmpPath) => {
-						var merger = new package.Package.Merger(path.join(tmpPath, ".."), ["manifests/**/*.json"]);
+						var merger = new package.Package.Merger(<settings.PackageSettings>{root: path.join(tmpPath, ".."), manifestGlobs: ["manifests/**/*.json"]});
 						merger.merge().then((manifests) => {
 							assert.equal(manifests.vsixManifest.PackageManifest.Assets[0].Asset.length, 2);
 							assert.equal(manifests.vsixManifest.PackageManifest.Metadata[0].Identity[0].$.Id, "samples.point-guide");
@@ -35,7 +36,7 @@ module PackageTests {
 			describe("#writeVsix", () => {
 				it("Should write the given manifests into a .vsix archive.", (done) => {
 					withManifests((tmpPath) => {
-						var merger = new package.Package.Merger(path.join(tmpPath, ".."), ["manifests/**/*.json"]);
+						var merger = new package.Package.Merger(<settings.PackageSettings>{root: path.join(tmpPath, ".."), manifestGlobs: ["manifests/**/*.json"]});
 						merger.merge().then((manifests) => {
 							var vsixWriter = new package.Package.VsixWriter(manifests.vsoManifest, manifests.vsixManifest);
 							vsixWriter.writeVsix(path.join(path.dirname(tmpPath), "ext.vsix")).then(() => {
@@ -50,7 +51,7 @@ module PackageTests {
 			describe("#writeManifests", () => {
 				it("Should write the given manifest objects to files", (done) => {
 					withManifests((tmpPath) => {
-						var merger = new package.Package.Merger(path.join(tmpPath, ".."), ["manifests/**/*.json"]);
+						var merger = new package.Package.Merger(<settings.PackageSettings>{root: path.join(tmpPath, ".."), manifestGlobs: ["manifests/**/*.json"]});
 						merger.merge().then((manifests) => {
 							var writer = new package.Package.ManifestWriter(manifests.vsoManifest, manifests.vsixManifest);
 							var vsoStr = fs.createWriteStream(path.join(tmpPath, "vso.json"), {encoding: "utf-8"});

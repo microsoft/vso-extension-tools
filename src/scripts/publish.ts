@@ -7,6 +7,7 @@ import GalleryClient = require("../lib/VSS/Gallery/RestClient");
 import GalleryContracts = require("../lib/VSS/Gallery/Contracts");
 import RestClient = require("../lib/VSS/WebApi/RestClient");
 import Q = require("q");
+import settings = require("./settings");
 import xml2js = require("xml2js");
 import zip = require("jszip");
 
@@ -39,8 +40,8 @@ export module Publish {
 		 * @param string baseUrl of the Gallery
 		 * @param string personal access token with all accounts and all scopes access
 		 */
-		constructor(baseUrl: string, token: string) {
-			super(baseUrl, token);
+		constructor(settings: settings.PublishSettings) {
+			super(settings.galleryUrl, settings.token);
 		}
 		
 		/**
@@ -76,8 +77,8 @@ export module Publish {
 		 * @param string baseUrl of the Gallery
 		 * @param string personal access token with all accounts and all scopes access
 		 */
-		constructor(baseUrl: string, token: string) {
-			super(baseUrl, token);
+		constructor(settings: settings.PublishSettings) {
+			super(settings.galleryUrl, settings.token);
 		}
 		
 		private getExtensionIdAndPublisher(vsixPath: string): Q.Promise<{id: string, publisher: string}> {
@@ -113,7 +114,7 @@ export module Publish {
 						return extInfo;
 					}
 					return null;
-				}).catch<{id: string, publisher: string}>(errHandler.err);
+				}).catch<{id: string, publisher: string}>(() => {return null;});
 			});
 		}
 		

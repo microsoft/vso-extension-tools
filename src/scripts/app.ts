@@ -4,125 +4,83 @@ import _ = require("lodash");
 import fs = require("fs");
 import logger = require("tracer");
 import package = require("./package");
-import path = require("path");
 import program = require("commander");
 import publish = require("./publish");
 import Q = require("q");
-import tmp = require("tmp");
+import settings = require("./settings");
 
-var log = logger.console();
+let log = logger.console();
 
 module App {
-	function getOptions(settingsPath: string, options: any, defaults: {[key: string]: any} = {}): {[key: string]: any} {
-		if (settingsPath) {
-			let settingsJson = JSON.parse(fs.readFileSync(settingsPath, "utf-8"));
-			Object.keys(settingsJson).forEach((key) => {
-				defaults[key] = settingsJson[key];
+	
+	function doPackageCreate(settings: settings.PackageSettings): Q.Promise<any> {
+		console.log("Creating a package with these options: \n" + JSON.stringify(settings, null, 4));
+		let merger = new package.Package.Merger(settings);
+		console.log("Beginning merge of partial manifests.");
+		return merger.merge().then((manifests) => {
+			console.log("Merge completed.");
+			let vsixWriter = new package.Package.VsixWriter(manifests.vsoManifest, manifests.vsixManifest);
+			console.log("Beginning writing VSIX");
+			return vsixWriter.writeVsix(settings.outputPath).then(() => {
+				console.log("VSIX written to: " + settings.outputPath);
 			});
-		}
-		if (_.isObject(options)) {
-			Object.keys(defaults).forEach((key) => {
-				if (options[key]) {
-					defaults[key] = options[key];
+		}).catch<any>(console.error.bind(console));
+	}
+	
+	function doPublish(settings: settings.PublishSettings): Q.Promise<any> {
+		let publisher = new publish.Publish.PackagePublisher(settings);
+		return publisher.publish(settings.vsixPath);
+	}
+	
+	export function publishVsix(options: settings.CommandLineOptions): Q.Promise<any> {
+		console.log("Begin");
+		return settings.resolveSettings(options).then((settings) => {
+			console.log("Settings resolved... " + JSON.stringify(settings, null, 4));
+			return Q.Promise<any>((resolve, reject, notify) => {
+				if (settings.package) {
+					console.log("VSIX was manually specified. Skipping generation.");
+					resolve(null);
+				} else {
+					resolve(doPackageCreate(settings.package));
 				}
-			});	
-		}
-		return defaults;
+			}).then(() => {
+				console.log("VSIX to publish is located at: " + settings.package.outputPath);
+				return doPublish(settings.publish);
+			}).then(() => {
+				console.log("Done!");
+			}).catch((error) => {
+				let errStr = _.isString(error) ? error : JSON.stringify(error, null, 4);
+				console.error("Error: " + errStr);
+			});
+		}).catch(console.error.bind(console));
 	}
 	
-	export function createPackage(settingsPath: string, options: any): Q.Promise<string> {
-		
-		let processedOptions = getOptions(settingsPath, options, {
-			root: process.cwd(),
-			manifestGlobs: ["**/*-manifest.json"],
-			outputPath: process.cwd() 
-		});
-		
-		if (options.manifestGlob) {
-			processedOptions["manifestGlobs"] = options.manifestGlob;
-		}
-		if (typeof processedOptions["manifestGlobs"] === "string") {
-			processedOptions["manifestGlobs"] = [processedOptions["manifestGlobs"]]; 
-		}
-		processedOptions["root"] = path.resolve(processedOptions["root"]);
-		processedOptions["manifestGlobs"] = processedOptions["manifestGlobs"].map(g => path.join(processedOptions["root"], g));
-		
-		console.log("Creating a package with these options: \n" + JSON.stringify(processedOptions, null, 4));
-		
-		// Replace {tmp} at beginning of outPath with a temporary directory path
-		let outPathPromise: Q.Promise<string>;
-		if (processedOptions["outputPath"].indexOf("{tmp}") === 0) {
-			outPathPromise = Q.Promise<string>((resolve, reject, notify) => {
-				tmp.dir({unsafeCleanup: true}, (err, tmpPath, cleanupCallback) => {
-					if (err) {
-						reject(err);
-					}
-					resolve(processedOptions["outPath"].replace("{tmp}", tmpPath));
-				});
-			})
-		} else {
-			outPathPromise = Q.resolve<string>(processedOptions["outputPath"]);
-		}
-		return outPathPromise.then((outPath) => {
-			let merger = new package.Package.Merger(processedOptions["root"], processedOptions["manifestGlobs"]);
-			console.log("Beginning merge of partial manifests.");
-			return merger.merge().then((manifests) => {
-				console.log("Merge completed.");
-				let vsixWriter = new package.Package.VsixWriter(manifests.vsoManifest, manifests.vsixManifest);
-				console.log("Beginning writing VSIX");
-				return vsixWriter.writeVsix(outPath).then(() => {
-					console.log("VSIX written to: " + outPath);
-					return outPath;
-				}).catch<string>(console.error.bind(console));
-			}).catch<string>(console.error.bind(console));
-		}).catch<string>(console.error.bind(console));
-	}
-	
-	function doPublish(vsixPath: string, publishSettingsPath: string, options: any): Q.Promise<any> {
-		let publishOptions = getOptions(publishSettingsPath, options);
-		if (!publishOptions["token"] || !publishOptions["galleryUrl"]) {
-			throw "Could not find gallery URL or personal access token!";
-		}
-		
-		let publisher = new publish.Publish.PackagePublisher(publishOptions["galleryUrl"], publishOptions["token"]);
-		return publisher.publish(vsixPath);
-	}
-	
-	export function publishVsix(publishSettingsPath: string, packageSettingsPath: string, options: any): Q.Promise<any> {
-		
-		return Q.Promise<string>((resolve, reject, notify) => {
-			if (options.vsix) {
-				console.log("VSIX was manually specified. Skipping generation.");
-				resolve(options.vsix);
-			} else {
-				console.log("Generating VSIX from settings at: " + path.resolve(packageSettingsPath));
-				resolve(createPackage(packageSettingsPath, options));
+	export function createPackage(options: settings.CommandLineOptions): Q.Promise<any> {
+		return settings.resolveSettings(options, {
+			package: {
+				root: process.cwd(),
+				manifestGlobs: ["**/*-manifest.json"],
+				outputPath: process.cwd()
 			}
-		}).then((vsixPath) => {
-			console.log("VSIX to publish is located at: " + vsixPath);
-			return doPublish(vsixPath, publishSettingsPath, options);
-		}).then(() => {
-			console.log("Done!");
-		}).catch((error) => {
-			var errStr = _.isString(error) ? error : JSON.stringify(error, null, 4);
-			console.error("Error: " + errStr);
+		}).then(doPackageCreate);
+	}
+	
+	export function createPublisher(name: string, displayName: string, description: string, options: settings.CommandLineOptions): Q.Promise<any> {
+		return settings.resolveSettings(options).then((options) => {
+			let pubManager = new publish.Publish.PublisherManager(options.publish);
+			return pubManager.createPublisher(name, displayName, description).catch(console.error.bind(console));
+		})
+	}
+	
+	export function deletePublisher(publisherName: string, options: settings.CommandLineOptions): Q.Promise<any> {
+		return settings.resolveSettings(options).then((options) => {
+			let pubManager = new publish.Publish.PublisherManager(options.publish);
+			return pubManager.deletePublisher(publisherName).catch(console.error.bind(console));
 		});
-	}
-	
-	export function createPublisher(publishSettingsPath: string, name: string, displayName: string, description: string): Q.Promise<any> {
-		var options = getOptions(publishSettingsPath, null);
-		let pubManager = new publish.Publish.PublisherManager(options["galleryUrl"], options["token"]);
-		return pubManager.createPublisher(name, displayName, description).catch(console.error.bind(console));
-	}
-	
-	export function deletePublisher(publishSettingsPath: string, publisherName: string): Q.Promise<any> {
-		var options = getOptions(publishSettingsPath, null);
-		let pubManager = new publish.Publish.PublisherManager(options["galleryUrl"], options["token"]);
-		return pubManager.deletePublisher(publisherName).catch(console.error.bind(console));
 	}
 }
 
-var version = process.version;
+let version = process.version;
 if (parseInt(version.split(".")[1], 10) < 12) {
 	console.log("Please upgrade to NodeJS v0.12.x or higher");
 	process.exit(-1);
@@ -134,7 +92,7 @@ program
 	.usage("command [options]");
 
 program
-	.command("package [package_settings_path]")
+	.command("package [settings_path]")
 	.description("Create a vsix package for an extension.")
 	.option("-r, --root <root>", "Specify the root for files in your vsix package. [.]")
 	.option("-m, --manifest-glob <glob>", "Specify the pattern for manifest files to join. [**/*-manifest.json]")
@@ -142,22 +100,28 @@ program
 	.action(App.createPackage);
 	
 program
-	.command("publish <publish_settings_path> [package_settings_path]")
+	.command("publish [settings_path]")
 	.description("Publish a VSIX package to your account. Generates the VSIX using [package_settings_path] unless --vsix is specified.")
 	.option("-v, --vsix <path_to_vsix>", "If specified, publishes this VSIX package instead of auto-packaging.")
 	.option("-r, --root <root>", "Specify the root for files in your vsix package. [.]")
-	.option("-m, --manifest-glob <glob>", "Specify the pattern for manifest files to join. [**/*-manifest.json]")
+	.option("-m, --manifest-glob <manifest-glob>", "Specify the pattern for manifest files to join. [**/*-manifest.json]")
 	.option("-o, --output-path <output>", "Specify the path and file name of the generated vsix. [..]")
+	.option("-g, --gallery-url <gallery_url>", "Specify the URL to the gallery.")
+	.option("-t, --token <token>", "Specify your personal access token.")
 	.action(App.publishVsix);
 	
 program
-	.command("create-publisher <publish_settings_path> <name> <display_name> <description>")
+	.command("create-publisher <name> <display_name> <description> [settings_path]")
 	.description("Create a publisher")
+	.option("-g, --gallery-url <gallery_url>", "Specify the URL to the gallery.")
+	.option("-t, --token <token>", "Specify your personal access token.")
 	.action(App.createPublisher);
 	
 program
-	.command("delete-publisher <publish_settings_path> <publisher_name>")
+	.command("delete-publisher <publisher_name> [settings_path]")
 	.description("Delete a publisher")
+	.option("-g, --gallery-url <gallery_url>", "Specify the URL to the gallery.")
+	.option("-t, --token <token>", "Specify your personal access token.")
 	.action(App.deletePublisher);
 
 program.parse(process.argv);
