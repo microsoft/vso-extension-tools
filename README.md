@@ -28,6 +28,7 @@ This tool will merge any number of manifest files (all in JSON format) into the 
 
     <p><strong>Note</strong>: Paths should be relative to the manifest file.</p></li>
     <li>Additionally, you may want to add properties for <code>"tags"</code>, <code>"categories"</code>, and <code>"VSOFlags"</code>, each of which should be a list of strings.</li>
+    <li>Extensions will be private by default. To specify a public extension, add <code>"public": true</code>.
 </ol>
 
 ## Run
