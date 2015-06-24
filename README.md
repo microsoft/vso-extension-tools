@@ -11,6 +11,8 @@ This app requires [NodeJS](http://nodejs.org), NPM (included with the NodeJS ins
 3. Run `npm install`
 4. Run `tsc -p .`
 
+You can also open the directory in Visual Studio Code and build using Ctrl+Shift+B.
+
 ### Prep your manifest(s)
 This tool will merge any number of manifest files (all in JSON format) into the required .vsomanifest and .vxismanifest files. If you are using this tool with an extension for the first time, you may need to add a few things to your manifest:
 
