@@ -109,7 +109,7 @@ This command publishes a VSIX file to the Gallery. The VSIX can either be genera
 To get a personal access token, navigate to `https://<your_account_url>/_details/security/tokens` and **Add** a new token for **All accessible accounts** and **All scopes**. Copy and paste the generated token into the settings.json file.
 
 #### Temporary path for VSIX
-If you don't want to keep the VSIX around after it is published, you can specify to use a temporary path in *package settings*. Simply use `{tmp}` as the outputPath. Note: The generated VSIX will be deleted after it is published.
+If you don't want to keep the generated VSIX around after it is published, you can specify to use a temporary path in *package settings*. Simply use `{tmp}` as the outputPath. Note: The generated VSIX will be deleted after it is published.
 
 #### Command-line arguments
 Alternatively, you can use the following command-line arguments in lieu of the settings file:  
@@ -143,7 +143,7 @@ If you want your requests to route through the Fiddler proxy, you must pass in t
 
 `packext publish --vsix C:\temp\existingextension.vsix`
 
-`packext publish --vsix C:\temp\existingextension.vsix` --gallery-url https://gallery.visualstudio.com --token xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+`packext publish --vsix C:\temp\existingextension.vsix --gallery-url https://gallery.visualstudio.com --token xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`
 
 #### Create publisher
 `packext create-publisher "fabrikamCorp" "Fabrikam, inc." "This is Fabrikam, inc.'s main publisher."`
