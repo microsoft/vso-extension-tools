@@ -69,6 +69,12 @@ export module Package {
 				path.isAbsolute(pattern) ? pattern : path.join(this.mergeSettings.root, pattern));
 			return Q.all(globs.map(pattern => this.gatherManifestsFromGlob(pattern))).then((fileLists) => {
 				return _.unique(fileLists.reduce((a, b) => { return a.concat(b); }));
+			}).then((paths) => {
+				if (paths.length > 0) {
+					return paths;
+				} else {
+					throw "No manifests found from the following glob patterns: \n" + globPatterns.join("\n");
+				}
 			});
 		}
 		
@@ -132,7 +138,7 @@ export module Package {
 					});
 					return <SplitManifest>{vsoManifest: vsoManifest, vsixManifest: vsixManifest};
 				});
-			}).catch<SplitManifest>(console.error.bind(console));
+			});
 		}
 		
 		private handleDelimitedList(value: any, object: any, path: string, delimiter: string = ",") {
@@ -438,10 +444,10 @@ export module Package {
 		 */
 		public writeManifests(vsoStream: stream.Writable, vsixStream: stream.Writable): Q.Promise<any> {
 			
-			let vsoPromise = Q.ninvoke(vsoStream, "write", JSON.stringify(this.vsoManifest, null, 4), "utf-8");
+			let vsoPromise = Q.ninvoke<any>(vsoStream, "write", JSON.stringify(this.vsoManifest, null, 4), "utf-8");
 			vsoPromise = vsoPromise.then(() => {
 				vsoStream.end();
-			}).catch(console.error.bind(console));
+			});
 			
 			let builder = new xml.Builder({
 				indent: "    ",
@@ -454,10 +460,10 @@ export module Package {
 				}
 			});
 			let vsix = builder.buildObject(this.vsixManifest);
-			let vsixPromise = Q.ninvoke(vsixStream, "write", vsix, "utf8");
+			let vsixPromise = Q.ninvoke<any>(vsixStream, "write", vsix, "utf8");
 			vsixPromise = vsixPromise.then(() => {
 				vsixStream.end();
-			}).catch(console.error.bind(console));
+			});
 			
 			return Q.all([vsoPromise, vsixPromise]);
 		}

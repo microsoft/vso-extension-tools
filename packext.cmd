@@ -1,2 +1,2 @@
 @echo off
-call node public\src\scripts\app.js %*
+call node %~dp0public\src\scripts\app.js %*

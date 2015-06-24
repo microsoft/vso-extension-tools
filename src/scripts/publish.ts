@@ -24,6 +24,14 @@ export module Publish {
 		 * @param string personal access token with all accounts and all scopes access
 		 */
 		constructor(baseUrl: string, token: string) {
+			if (!baseUrl || !/^https?:\/\//.test(baseUrl)) {
+				throw "Invalid or missing gallery URL.";
+			}
+			if (!token || !/^[A-z0-9]{52}$/.test(token)) {
+				console.log(token);
+				console.log(token.length);
+				throw "Invalid or missing personal access token.";
+			}
 			this.galleryUrl = baseUrl;
 			this.token = token;
 			this.galleryClient = RestClient.VssHttpClient.getClient(GalleryClient.GalleryHttpClient, this.galleryUrl, this.token);

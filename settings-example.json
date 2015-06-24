@@ -1,0 +1,12 @@
+{
+	"package": {
+		"outputPath": "C:\\destination\\extension.vsix",
+		"manifestGlobs": ["*.json"],
+		"root": "C:\\base\\dir\\for\\globs"
+	},
+	"publish": {
+		"galleryUrl": "https://gallery.visualstudio.com/",
+		"token": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+		"vsixPath": "C:\\destination\\extension.vsix"
+	}
+}
