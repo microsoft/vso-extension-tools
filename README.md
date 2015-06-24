@@ -45,7 +45,7 @@ This command packages a VSIX file with your extension manifest and your assets, 
 
 * `outputPath`: &lt;current working directory&gt;/extension.vsix
 * `root`: &lt;current working directory&gt;
-* `manifestGlobs`: **/*-manifest.json
+* `manifestGlobs`: \*\*/\*-manifest.json
 
 #### Settings file
 See the settings_example.json file for an example.
