@@ -108,6 +108,9 @@ This command publishes a VSIX file to the Gallery. The VSIX can either be genera
 ```
 To get a personal access token, navigate to `https://<your_account_url>/_details/security/tokens` and **Add** a new token for **All accessible accounts** and **All scopes**. Copy and paste the generated token into the settings.json file.
 
+#### Temporary path for VSIX
+If you don't want to keep the VSIX around after it is published, you can specify to use a temporary path in *package settings*. Simply use `{tmp}` as the outputPath. Note: The generated VSIX will be deleted after it is published.
+
 #### Command-line arguments
 Alternatively, you can use the following command-line arguments in lieu of the settings file:  
 ```txt
