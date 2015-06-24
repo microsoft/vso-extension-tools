@@ -15,17 +15,17 @@ This app requires [NodeJS](http://nodejs.org), NPM (included with the NodeJS ins
 This tool will merge any number of manifest files (all in JSON format) into the required .vsomanifest and .vxismanifest files. If you are using this tool with an extension for the first time, you may need to add a few things to your manifest:
 
 <ol>
-    <li>Add `"publisher": "yourpublishername"` to the manifest. "yourpublishername" should be replaced by the **same name as the publisher you created in the Gallery**.</li>
+    <li>Add <code>"publisher": "yourpublishername"</code> to the manifest. "yourpublishername" should be replaced by the <strong>same name as the publisher you created in the Gallery</strong>.</li>
     <li><p>Add assets that go into the VSIX package. For example:</p>
-    <p><pre>"assets": [
+    <p><pre><code>"assets": [
         {
             "type": "Microsoft.VSO.LargeIcon",
             "path": "images/fabrikam-logo.png"
         }
-    ],</pre></p>
+    ],</code></pre></p>
 
-    <p>**Note**: Paths should be relative to the manifest file.</p></li>
-    <li>Additionally, you may want to add properties for `"tags"`, `"categories"`, and `"VSOFlags"`, each of which should be a list of strings.</li>
+    <p><strong>Note</strong>: Paths should be relative to the manifest file.</p></li>
+    <li>Additionally, you may want to add properties for <code>"tags"</code>, <code>"categories"</code>, and <code>"VSOFlags"</code>, each of which should be a list of strings.</li>
 </ol>
 
 ## Run
