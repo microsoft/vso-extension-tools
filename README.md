@@ -120,6 +120,9 @@ These commands are used to create or delete a publisher. When creating a publish
 
 `delete-publisher` [options] &lt;unique_name&gt;
 
+### Fiddler
+If you want your requests to route through the Fiddler proxy, you must pass in the `--fiddler` option. Fiddler must be open if this is passed; otherwise all requests will fail.
+
 ### Examples
 
 #### Package
