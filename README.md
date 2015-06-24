@@ -11,6 +11,8 @@ This app requires [NodeJS](http://nodejs.org), NPM (included with the NodeJS ins
 3. Run `npm install`
 4. Run `tsc -p .`
 
+You can also open the directory in Visual Studio Code and build using Ctrl+Shift+B.
+
 ### Prep your manifest(s)
 This tool will merge any number of manifest files (all in JSON format) into the required .vsomanifest and .vxismanifest files. If you are using this tool with an extension for the first time, you may need to add a few things to your manifest:
 
@@ -26,6 +28,7 @@ This tool will merge any number of manifest files (all in JSON format) into the 
 
     <p><strong>Note</strong>: Paths should be relative to the manifest file.</p></li>
     <li>Additionally, you may want to add properties for <code>"tags"</code>, <code>"categories"</code>, and <code>"VSOFlags"</code>, each of which should be a list of strings.</li>
+    <li>Extensions will be private by default. To specify a public extension, add <code>"public": true</code>.
 </ol>
 
 ## Run
@@ -45,7 +48,7 @@ This command packages a VSIX file with your extension manifest and your assets, 
 
 * `outputPath`: &lt;current working directory&gt;/extension.vsix
 * `root`: &lt;current working directory&gt;
-* `manifestGlobs`: **/*-manifest.json
+* `manifestGlobs`: \*\*/\*-manifest.json
 
 #### Settings file
 See the settings_example.json file for an example.
