@@ -133,14 +133,14 @@ If you want your requests to route through the Fiddler proxy, you must pass in t
 #### Publish
 `packext publish` - use ./settings.json to publish a VSIX (which may be packaged also, depending on the presence of the publish.vsixPath property
 
-`packext publish --settings settings.json --root . --output-path C:\temp\myextension.vsix --manifest-glob **/*.json`
+`packext publish --root . --output-path C:\temp\myextension.vsix --manifest-glob **/*.json`
 
-`packext publish --settings settings.json --vsix C:\temp\existingextension.vsix`
+`packext publish --vsix C:\temp\existingextension.vsix`
 
 `packext publish --vsix C:\temp\existingextension.vsix` --gallery-url https://gallery.visualstudio.com --token xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 #### Create publisher
-`packext create-publisher settings.json "fabrikamCorp" "Fabrikam, inc." "This is Fabrikam, inc.'s main publisher."`
+`packext create-publisher "fabrikamCorp" "Fabrikam, inc." "This is Fabrikam, inc.'s main publisher."`
 
 #### Delete publisher
-`packext delete-publisher settings.json "fabrikamCorp"`
+`packext delete-publisher "fabrikamCorp"`
