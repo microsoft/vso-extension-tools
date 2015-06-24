@@ -1,5 +1,5 @@
 # Extension Packer
-This utility packs and publishes extensions for Visual Studio, Visual Studio Online, and Visual Studio Code.
+This utility packs and publishes extensions for Visual Studio Online, Visual Studio (planned) and Visual Studio Code (planned).
 
 # Usage
 ## Tooling
