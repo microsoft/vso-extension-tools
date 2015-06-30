@@ -33,39 +33,58 @@ export class ToM85 {
 		"vss.web#hubGroups.admin.project": "ms.vss-web.project-admin-hub-groups-collection", 
 		"vss.web#hubGroups.admin.collection": "ms.vss-web.collection-admin-hub-groups-collection", 
 		"vss.web#hubGroups.admin.application": "ms.vss-web.account-admin-hub-groups-collection", 
-		"vss.web#hubs": "ms.vss-web.hub",
+		// "vss.web#hubs": "ms.vss-web.hub", // special cased
 		
 		// Dashboards
 		"vss.dashboards.web#widget: ": "ms.vss-dashboards-web.dashboard-catalog"
-	}
+	};
+	
+	private static hubGroupIdToTargetMap = {
+		"project.contribution": "ms.vss-web.project-hub-groups-collection",
+		"application.contribution": "ms.vss-web.account-hub-groups-collection",
+		"admin.project": "ms.vss-web.project-admin-hub-groups-collection",
+		"admin.collection": "ms.vss-web.collection-admin-hub-groups-collection",
+		"admin.application": "ms.vss-web.account-admin-hub-groups-collection",
+		"home": "ms.vss-web.home-hub-group",
+		"home.application": "ms.vss-web.account-home-hub-group",
+		"source": "ms.vss-code-web.code-hub-group",
+		"workitems": "ms.vss-work-web.work-hub-group",
+		"build": "ms.vss-build-web.build-hub-group",
+		"test": "ms.vss-test-web.test-hub-group"
+	};
 	
 	private static contributionTypeMap = {
-		"vss.work.web#workItemActions": "ms.vs-web.menu",
-		"vss.work.web#workItemToolbarActions": "ms.vs-web.menu",
-		"vss.work.web#queryActions": "ms.vs-web.menu",
-		"vss.work.web#sprintBoardPivotFilters": "ms.vs-web.menu",
-		"vss.work.web#backlogsBoardPivotFilters": "ms.vs-web.menu",
-		"vss.work.web#backlogItemActions": "ms.vs-web.menu",
-		"vss.code.web#gitBranchesSummaryGrid": "ms.vs-web.menu",
-		"vss.code.web#gitBranchDiffActions": "ms.vs-web.menu",
-		"vss.code.web#sourceItemActions": "ms.vs-web.menu",
-		"vss.code.web#changeExplorerActions": "ms.vs-web.menu",
-		"vss.code.web#changeListSummaryItemActions": "ms.vs-web.menu",
-		"vss.code.web#sourceGridItemActions": "ms.vs-web.menu",
-		"vss.code.web#sourceTreeItemActions": "ms.vs-web.menu",
-		"vss.code.web#gitBranchActions": "ms.vs-web.menu",
-		"vss.build.web#buildDefinitionActions": "ms.vs-web.menu",
-		"vss.build.web#completedBuildActions": "ms.vs-web.menu",
-		"vss.test.web#testRunGridActions": "ms.vs-web.menu",
-		"vss.test.web#testRunActions": "ms.vs-web.menu",
+		// Special case... action, hyperlink-action, or action-provider
+		"vss.work.web#workItemActions": "ms.vss-web.menu",
+		"vss.work.web#workItemToolbarActions": "ms.vss-web.menu",
+		"vss.work.web#queryActions": "ms.vss-web.menu",
+		"vss.work.web#sprintBoardPivotFilters": "ms.vss-web.menu",
+		"vss.work.web#backlogsBoardPivotFilters": "ms.vss-web.menu",
+		"vss.work.web#backlogItemActions": "ms.vss-web.menu",
+		"vss.code.web#gitBranchesSummaryGrid": "ms.vss-web.menu",
+		"vss.code.web#gitBranchDiffActions": "ms.vss-web.menu",
+		"vss.code.web#sourceItemActions": "ms.vss-web.menu",
+		"vss.code.web#changeExplorerActions": "ms.vss-web.menu",
+		"vss.code.web#changeListSummaryItemActions": "ms.vss-web.menu",
+		"vss.code.web#sourceGridItemActions": "ms.vss-web.menu",
+		"vss.code.web#sourceTreeItemActions": "ms.vss-web.menu",
+		"vss.code.web#gitBranchActions": "ms.vss-web.menu",
+		"vss.build.web#buildDefinitionActions": "ms.vss-web.menu",
+		"vss.build.web#completedBuildActions": "ms.vss-web.menu",
+		"vss.test.web#testRunGridActions": "ms.vss-web.menu",
+		"vss.test.web#testRunActions": "ms.vss-web.menu",
 		
 		// Hubs
-		"vss.web#hubGroups.project": "ms.vs-web.hubgroup", 
-		"vss.web#hubGroups.application": "ms.vs-web.hubgroup", 
-		"vss.web#hubGroups.admin.project": "ms.vs-web.hubgroup", 
-		"vss.web#hubGroups.admin.collection": "ms.vs-web.hubgroup", 
-		"vss.web#hubGroups.admin.application": "ms.vs-web.hubgroup", 
+		"vss.web#hubGroups.project": "ms.vss-web.hub-group", 
+		"vss.web#hubGroups.application": "ms.vss-web.hub-group", 
+		"vss.web#hubGroups.admin.project": "ms.vss-web.hub-group", 
+		"vss.web#hubGroups.admin.collection": "ms.vss-web.hub-group", 
+		"vss.web#hubGroups.admin.application": "ms.vss-web.hub-group", 
 		"vss.web#hubs": "ms.vss-web.hub",
+		
+		// Other
+		"vss.web#control": "ms.vss-web.control",
+		"vss.web#service": "ms.vss-web.service",
 		
 		// Dashboards
 		"vss.dashboards.web#widget: ": "ms.vss-dashboards-web.dashboard-catalog"
@@ -134,39 +153,85 @@ export class ToM85 {
 		}
 	};
 	
-	private static pointIdToTarget(pointId: string): string {
-		if (pointId.charAt(0) === "#") {
-			return "." + pointId.substr(1).replace(/\./g, "-");
+	private static idCounts: {[key: string]: number} = {};
+	private static getExtensionId(extId: string): string {
+		if (ToM85.idCounts[extId]) {
+			return extId + "_" + (++ToM85.idCounts[extId]);
+		} else {
+			ToM85.idCounts[extId] = 1;
+			return extId;
 		}
-		if (ToM85.contributionIdMap[pointId]) {
-			return ToM85.contributionIdMap[pointId];
+	}
+	
+	private static pointIdToTarget(pointId: string, contribution: any): string {
+		if (pointId === "vss.web#hubs") {
+			let group = contribution.groupId || contribution.group;
+			if (group && ToM85.hubGroupIdToTargetMap[group]) {
+				return ToM85.hubGroupIdToTargetMap[group];
+			}
+		} else {
+			if (pointId.charAt(0) === "#") {
+				return "." + pointId.substr(1).replace(/\./g, "-");
+			}
+			if (ToM85.contributionIdMap[pointId]) {
+				return ToM85.contributionIdMap[pointId];
+			}
 		}
 		console.log("Warning: Cannot find appropriate M85 target contribution for contribution point " + pointId + ".");
+		if (contribution.group || contribution.groupId) {
+			console.log("-- groupId: " + (contribution.group || contribution.groupId));
+		}
 		return pointId;
 	}
 	
-	private static pointIdToType(pointId: string): string {
+	private static pointIdToType(pointId: string, contribution: any): string {
+		let type;
 		if (pointId.charAt(0) === "#") {
-			return "." + pointId.substr(1).replace(/\./g, "-");
+			type = "." + pointId.substr(1).replace(/\./g, "-");
 		}
 		if (ToM85.contributionTypeMap[pointId]) {
-			return ToM85.contributionTypeMap[pointId];
+			type = ToM85.contributionTypeMap[pointId];
 		}
-		console.log("Warning: Cannot find appropriate M85 contribution type for contribution point " + pointId + ".");
+		
+		if (type === "ms.vss-web.menu") {
+			if (contribution.title || contribution.text || contribution.icon ) {
+				type = "ms.vss-web.action";
+			} else if (contribution.targetUri) {
+				type = "ms.vss-web.hyperlink-action";
+			} else {
+				type = "ms.vss-web.action-provider";
+			}
+		}
+		
+		if (!type) {
+			console.log("Warning: Cannot find appropriate M85 contribution type for contribution point " + pointId + ".");
+		}
+		return type;
 	}
 	
 	private static convertContribution(pointId: string, contribution: any): any {
-		let newContribution = <any>{id: null, targets: [ToM85.pointIdToTarget(pointId)], type: ToM85.pointIdToType(pointId), properties: {}};
+		let newContribution = <any>{id: null, targets: [ToM85.pointIdToTarget(pointId, contribution)], type: ToM85.pointIdToType(pointId, contribution), properties: {}};
 		Object.keys(contribution).forEach((oldContributionProperty: string) => {
 			switch (oldContributionProperty) {
 				case "id":
-					newContribution.id = contribution.id;
+					newContribution.id = ToM85.getExtensionId(contribution.id);
+					break;
+				case "usesSdk":
+				case "fullPage":
+				case "groupId":
+					// these are no longer used.
 					break;
 				default:
 					newContribution.properties[oldContributionProperty] = contribution[oldContributionProperty];
 					break;
 			}
 		});
+		if (newContribution.type === "ms.vss-web.action" || newContribution.type === "ms.vss-web.action-provider") {
+			if (newContribution.id !== contribution.id) {
+				// If this is an action contribution and we had to number the contribution id, add a handler property
+				newContribution.properties["handler"] = contribution.id; 
+			}
+		}
 		if (!newContribution.id) {
 			console.log("Warning: No ID for contribution made to " + pointId + ".");
 		}
@@ -183,7 +248,7 @@ export class ToM85 {
 			} else {
 				old = JSON.parse(contents);
 			}
-			let upgraded = <any>{};
+			let upgraded = <any>{manifestVersion: null};
 			if (_.isObject(old)) {
 				var oldKeys = Object.keys(old);
 				oldKeys.forEach((oldKey: string) => {
@@ -198,12 +263,13 @@ export class ToM85 {
 			}
 			upgraded.publisher = this.publisherName;
 			if (!upgraded.manifestVersion) {
-				upgraded.manifestVersion = "1.0";
+				upgraded.manifestVersion = 1.0;
 			}
 			return upgraded;
 		}).then((upgraded) => {
 			console.log("Writing to " + outputPath + "...");
-			return Q.nfcall(fs.writeFile, outputPath, JSON.stringify(upgraded, null, 4));
+			var eol = require("os").EOL;
+			return Q.nfcall(fs.writeFile, outputPath, JSON.stringify(upgraded, null, 4).replace(/\n/g, eol));
 		});
 	}
 }

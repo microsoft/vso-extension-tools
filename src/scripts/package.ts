@@ -117,7 +117,7 @@ export module Package {
 					__meta_root: this.mergeSettings.root,
 					scopes: [],
 					contributions: [],
-					manifestVersion: "1.0"
+					manifestVersion: 1.0
 				};
 				return Q.all(manifestPromises).then((partials: any[]) => {
 					partials.forEach((partial) => {
@@ -182,6 +182,16 @@ export module Package {
 					break;
 				case "versioncheckuri":
 					vsoManifest.versionCheckUri = value;
+					break;
+				case "manifestversion":
+					let version = value;
+					if (_.isString(version)) {
+						version = parseFloat(version);
+					}
+					if (!version) {
+						version = 1;
+					}
+					vsoManifest.manifestVersion = version;
 					break;
 				case "public": 
 					if (typeof value === "boolean") {
@@ -439,15 +449,15 @@ export module Package {
 		 * @return Q.Promise<any> A promise that is resolved when the streams have been written/ended
 		 */
 		public writeManifests(vsoStream: stream.Writable, vsixStream: stream.Writable): Q.Promise<any> {
-			
-			let vsoPromise = Q.ninvoke<any>(vsoStream, "write", JSON.stringify(this.vsoManifest, null, 4), "utf-8");
+			let eol = require("os").EOL;
+			let vsoPromise = Q.ninvoke<any>(vsoStream, "write", JSON.stringify(this.vsoManifest, null, 4).replace(/\n/g, eol), "utf8");
 			vsoPromise = vsoPromise.then(() => {
 				vsoStream.end();
 			});
 			
 			let builder = new xml.Builder({
 				indent: "    ",
-				newline: require("os").EOL,
+				newline: eol,
 				pretty: true,
 				xmldec: {
 					encoding: "utf-8",
