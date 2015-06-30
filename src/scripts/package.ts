@@ -113,7 +113,12 @@ export module Package {
 				let defaultVsixManifestPath = path.join(require("app-root-path").path, "src", "tmpl", "default_vsixmanifest.json"); 
 				let vsixManifest: any = JSON.parse(fs.readFileSync(defaultVsixManifestPath, "utf8"));
 				vsixManifest.__meta_root = this.mergeSettings.root;
-				let vsoManifest: any = {__meta_root: this.mergeSettings.root};
+				let vsoManifest: any = {
+					__meta_root: this.mergeSettings.root,
+					scopes: [],
+					contributions: [],
+					manifestVersion: "1.0"
+				};
 				return Q.all(manifestPromises).then((partials: any[]) => {
 					partials.forEach((partial) => {
 						// Transform asset paths to be relative to the root of all manifests.
@@ -154,9 +159,11 @@ export module Package {
 		private mergeKey(key: string, value: any, vsoManifest: any, vsixManifest: any) {
 			switch(key.toLowerCase()) {
 				case "namespace":
+				case "extensionid":
 					// Assert string value
-					vsoManifest.namespace = value;
-					vsixManifest.PackageManifest.Metadata[0].Identity[0].$.Id = value;
+					if (_.isString(value)) {
+						vsixManifest.PackageManifest.Metadata[0].Identity[0].$.Id = value.replace(/\./g, "-");
+					}
 					break;
 				case "version":
 					// Assert string value
@@ -173,12 +180,15 @@ export module Package {
 					vsoManifest.description = value;
 					vsixManifest.PackageManifest.Metadata[0].Description[0]._ = value;
 					break;
+				case "versioncheckuri":
+					vsoManifest.versionCheckUri = value;
+					break;
 				case "public": 
 					if (typeof value === "boolean") {
 						let flags = _.get(vsixManifest, "PackageManifest.Metadata[0].VSOFlags[0]", "").split(",");
 						_.remove(flags, v => v === "");
-						if (value === false) {
-							flags.push("Private");
+						if (value === true) {
+							flags.push("Public");
 						}
 						_.set(vsixManifest, "PackageManifest.Metadata[0].VSOFlags[0]", _.uniq(flags).join(","));
 						vsoManifest.__meta_public = value;
@@ -189,6 +199,11 @@ export module Package {
 					break;
 				case "releasenotes":
 					vsixManifest.PackageManifest.Metadata[0].ReleaseNotes = [value];
+					break;
+				case "scopes":
+					if (_.isArray(value)) {
+						vsoManifest.scopes = _.uniq(vsoManifest.scopes.concat(value));
+					}
 					break;
 				case "tags":
 					this.handleDelimitedList(value, vsixManifest, "PackageManifest.Metadata[0].Tags[0]");
@@ -204,20 +219,9 @@ export module Package {
 					vsoManifest.baseUri = value;
 					break;
 				case "contributions":
-					if (!vsoManifest.contributions) {
-						vsoManifest.contributions = {};
+					if (_.isArray(value)) {
+						vsoManifest.contributions = vsoManifest.contributions.concat(value);
 					}
-					_.merge(vsoManifest.contributions, value, (objectValue, sourceValue, key, object, source) => {
-						if (_.isArray(objectValue)) {
-							return (<Array<any>>objectValue).concat(sourceValue);
-						}
-					});
-					break;
-				case "contributionpoints":
-					if (!vsoManifest.contributionPoints) {
-						vsoManifest.contributionPoints = {};
-					}
-					_.merge(vsoManifest.contributionPoints, value);
 					break;
 				case "contributiontypes":
 					if (!vsoManifest.contributionTypes) {
@@ -225,7 +229,7 @@ export module Package {
 					}
 					_.merge(vsoManifest.contributionTypes, value);
 					break;
-				case "assets": 
+				case "assets": // fix me
 					if (_.isArray(value)) {
 						vsixManifest.PackageManifest.Assets = [{"Asset": []}];
 						value.forEach((asset: AssetDeclaration) => {
@@ -240,7 +244,7 @@ export module Package {
 					}
 					break;
 			}
-		}	 		
+		}
 	}
 	
 	/**
@@ -304,14 +308,6 @@ export module Package {
 				Type: "Microsoft.VSO.Manifest",
 				Path: VsixWriter.VSO_MANIFEST_FILENAME
 			}});
-			
-			// Default to a private extension
-			if (!this.vsoManifest.__meta_public) {
-				let flags: any = _.get(this.vsixManifest, "PackageManifest.Metadata[0].VSOFlags[0]", "").split(",");
-				_.remove(flags, v => v === "");
-				flags.push("Private");
-				_.set(this.vsixManifest, "PackageManifest.Metadata[0].VSOFlags", _.uniq(flags).join(","));	
-			}
 			
 			console.log("Manifests finished prepping.");
 		}

@@ -9,6 +9,7 @@ import program = require("commander");
 import publish = require("./publish");
 import Q = require("q");
 import settings = require("./settings");
+import upgrade = require("./upgrade");
 
 let log = logger.console();
 
@@ -84,6 +85,23 @@ module App {
 			console.log("Successfully deleted publisher `" + publisherName + "`.");
 		});
 	}
+	
+	export function toM85(pathToManifest: string, publisherName: string, outputPath: string, options: settings.CommandLineOptions): Q.Promise<any> {
+		let outPath = outputPath;
+		if (!outputPath) {
+			outPath = pathToManifest;
+		}
+		if (fs.existsSync(outPath) && !options.forceOverwrite) {
+			throw "File " + outPath + " already exists. Specify the -f to force overwriting this file.";
+		}
+		if (!publisherName) {
+			throw "Publisher name not specified.";
+		}
+		let upgrader = new upgrade.ToM85(pathToManifest, publisherName);
+		return upgrader.execute(outPath).then(() => {
+			console.log("Successfully upgraded manifest to M85. Result written to " + outPath + ".");
+		}).catch(console.error.bind(console));
+	}
 }
 
 let version = process.version;
@@ -133,5 +151,11 @@ program
 	.option("-t, --token <token>", "Specify your personal access token.")
 	.option("-s, --settings <settings_path>", "Specify the path to a settings file")
 	.action(App.deletePublisher);
+	
+program
+	.command("toM85 <path_to_manifest> <publisher_name> [output_path]")
+	.description("Convert a manifest to the new contribution model introduced in M85.")
+	.option("-f, --force-overwrite", "Overwrite an existing file, or overwrite the original manifest when output_path is not specified.")
+	.action(App.toM85);
 
 program.parse(process.argv);

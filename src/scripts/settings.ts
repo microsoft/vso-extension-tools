@@ -27,6 +27,7 @@ export interface CommandLineOptions {
 	outputPath?: string;
 	vsix?: string;
 	settings?: string;
+	forceOverwrite?: boolean;
 }
 
 
