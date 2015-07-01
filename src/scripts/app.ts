@@ -62,14 +62,24 @@ module App {
 			}).catch((error) => {
 				let errStr = _.isString(error) ? error : JSON.stringify(error, null, 4);
 				console.error("Error: " + errStr);
+			}).then(() => {
+				process.exit(0);
 			});
-		}).catch(console.error.bind(console));
+		}).catch((err) => {
+			console.error(err);
+			process.exit(-1);
+		});
 	}
 	
 	export function createPackage(options: settings.CommandLineOptions): Q.Promise<any> {
 		return settings.resolveSettings(options, defaultSettings).then((settings) => {
-			return doPackageCreate(settings.package);
-		}).catch(console.error.bind(console));
+			return doPackageCreate(settings.package).then(() => {
+				process.exit(0);
+			});
+		}).catch((err) => {
+			console.error(err);
+			process.exit(-1);
+		});
 	}
 	
 	export function createPublisher(name: string, displayName: string, description: string, options: settings.CommandLineOptions): Q.Promise<any> {
@@ -78,6 +88,10 @@ module App {
 			return pubManager.createPublisher(name, displayName, description).catch(console.error.bind(console));
 		}).then(() => {
 			console.log("Successfully created publisher `" + name + "`.");
+			process.exit(0);
+		}).catch((err) => {
+			console.error(err);
+			process.exit(-1);
 		});
 	}
 	
@@ -87,6 +101,10 @@ module App {
 			return pubManager.deletePublisher(publisherName).catch(console.error.bind(console));
 		}).then(() => {
 			console.log("Successfully deleted publisher `" + publisherName + "`.");
+			process.exit(0);
+		}).catch((err) => {
+			console.error(err);
+			process.exit(-1);
 		});
 	}
 	
@@ -104,7 +122,11 @@ module App {
 		let upgrader = new upgrade.ToM85(pathToManifest, publisherName);
 		return upgrader.execute(outPath).then(() => {
 			console.log("Successfully upgraded manifest to M85. Result written to " + outPath + ".");
-		}).catch(console.error.bind(console));
+			process.exit(0);
+		}).catch((err) => {
+			console.error(err);
+			process.exit(-1);
+		});
 	}
 }
 
@@ -163,3 +185,4 @@ program
 	.action(App.toM85);
 
 program.parse(process.argv);
+program.outputHelp();

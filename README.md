@@ -7,7 +7,7 @@ This app requires [NodeJS](http://nodejs.org) and npm (included with the NodeJS 
 
 ## Setup
 1. Run `npm install -g vset`.
-2. The tool can be run using `vset.cmd` or by invoking `node app.js`.
+2. If %APPDATA%\npm is in your PATH, simply invoke "vset"
 
 ### Prep your manifest(s)
 This tool will merge any number of manifest files (all in JSON format) into the required .vsomanifest and .vxismanifest files. If you are using this tool with an extension for the first time, you may need to add a few things to your manifest:

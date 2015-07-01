@@ -57,14 +57,24 @@ var App;
             }).catch(function (error) {
                 var errStr = _.isString(error) ? error : JSON.stringify(error, null, 4);
                 console.error("Error: " + errStr);
+            }).then(function () {
+                process.exit(0);
             });
-        }).catch(console.error.bind(console));
+        }).catch(function (err) {
+            console.error(err);
+            process.exit(-1);
+        });
     }
     App.publishVsix = publishVsix;
     function createPackage(options) {
         return settings.resolveSettings(options, defaultSettings).then(function (settings) {
-            return doPackageCreate(settings.package);
-        }).catch(console.error.bind(console));
+            return doPackageCreate(settings.package).then(function () {
+                process.exit(0);
+            });
+        }).catch(function (err) {
+            console.error(err);
+            process.exit(-1);
+        });
     }
     App.createPackage = createPackage;
     function createPublisher(name, displayName, description, options) {
@@ -73,6 +83,10 @@ var App;
             return pubManager.createPublisher(name, displayName, description).catch(console.error.bind(console));
         }).then(function () {
             console.log("Successfully created publisher `" + name + "`.");
+            process.exit(0);
+        }).catch(function (err) {
+            console.error(err);
+            process.exit(-1);
         });
     }
     App.createPublisher = createPublisher;
@@ -82,6 +96,10 @@ var App;
             return pubManager.deletePublisher(publisherName).catch(console.error.bind(console));
         }).then(function () {
             console.log("Successfully deleted publisher `" + publisherName + "`.");
+            process.exit(0);
+        }).catch(function (err) {
+            console.error(err);
+            process.exit(-1);
         });
     }
     App.deletePublisher = deletePublisher;
@@ -99,7 +117,11 @@ var App;
         var upgrader = new upgrade.ToM85(pathToManifest, publisherName);
         return upgrader.execute(outPath).then(function () {
             console.log("Successfully upgraded manifest to M85. Result written to " + outPath + ".");
-        }).catch(console.error.bind(console));
+            process.exit(0);
+        }).catch(function (err) {
+            console.error(err);
+            process.exit(-1);
+        });
     }
     App.toM85 = toM85;
 })(App || (App = {}));
@@ -151,3 +173,4 @@ program
     .option("-f, --force-overwrite", "Overwrite an existing file, or overwrite the original manifest when output_path is not specified.")
     .action(App.toM85);
 program.parse(process.argv);
+program.outputHelp();
