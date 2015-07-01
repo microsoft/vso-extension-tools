@@ -1,7 +1,7 @@
 {
-  "name": "packer",
+  "name": "vset",
   "version": "0.0.1",
-  "description": "Publish your VSO extensions.",
+  "description": "Visual Studio Online Extension Tool",
   "author": "Microsoft Corporation",
   "contributors": [
     {
