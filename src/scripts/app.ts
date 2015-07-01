@@ -185,4 +185,8 @@ program
 	.action(App.toM85);
 
 program.parse(process.argv);
-program.outputHelp();
+
+let commandNames = program["commands"].map(c => c._name);
+if (program["rawArgs"].length < 3 || commandNames.indexOf(program["rawArgs"][2]) === -1) {
+	program.outputHelp();
+}
