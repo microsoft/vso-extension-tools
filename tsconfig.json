@@ -5,7 +5,7 @@
 		"noImplicitAny": false,
 		"declaration": false,
 		"removeComments": true,
-		"outDir": "public/"
+		"outDir": "bin/"
 	},
 	"files": [
 		"src/scripts/app.ts",
