@@ -228,8 +228,8 @@ export class ToM85 {
 		});
 		if (newContribution.type === "ms.vss-web.action" || newContribution.type === "ms.vss-web.action-provider") {
 			if (newContribution.id !== contribution.id) {
-				// If this is an action contribution and we had to number the contribution id, add a handler property
-				newContribution.properties["handler"] = contribution.id; 
+				// If this is an action contribution and we had to number the contribution id, add a registeredObjectId property
+				newContribution.properties["registeredObjectId"] = contribution.id; 
 			}
 		}
 		if (!newContribution.id) {
@@ -243,11 +243,13 @@ export class ToM85 {
 			let old: any;
 			
 			// BOM check
-			let jsonData = contents.replace(/^\uFEFF/, '');
+			let jsonData = contents.replace(/^\uFEFF/, "");
 			old = JSON.parse(jsonData);
-			
 			let upgraded = <any>{manifestVersion: null};
 			if (_.isObject(old)) {
+				if (_.isArray(old.contributions)) {
+					throw "This manifest appears to already be upgraded to M85!";
+				}
 				var oldKeys = Object.keys(old);
 				oldKeys.forEach((oldKey: string) => {
 					if (this.actions[oldKey]) {

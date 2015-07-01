@@ -133,7 +133,7 @@ var ToM85 = (function () {
         });
         if (newContribution.type === "ms.vss-web.action" || newContribution.type === "ms.vss-web.action-provider") {
             if (newContribution.id !== contribution.id) {
-                newContribution.properties["handler"] = contribution.id;
+                newContribution.properties["registeredObjectId"] = contribution.id;
             }
         }
         if (!newContribution.id) {
@@ -145,10 +145,13 @@ var ToM85 = (function () {
         var _this = this;
         return Q.nfcall(fs.readFile, this.srcPath, "utf8").then(function (contents) {
             var old;
-            var jsonData = contents.replace(/^\uFEFF/, '');
+            var jsonData = contents.replace(/^\uFEFF/, "");
             old = JSON.parse(jsonData);
             var upgraded = { manifestVersion: null };
             if (_.isObject(old)) {
+                if (_.isArray(old.contributions)) {
+                    throw "This manifest appears to already be upgraded to M85!";
+                }
                 var oldKeys = Object.keys(old);
                 oldKeys.forEach(function (oldKey) {
                     if (_this.actions[oldKey]) {

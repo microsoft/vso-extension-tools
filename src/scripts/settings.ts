@@ -20,6 +20,7 @@ export interface PackageSettings {
 	root: string;
 	manifestGlobs: string[];
 	outputPath: string;
+	publisher: string;
 }
 export interface CommandLineOptions {
 	root?: string;
@@ -116,7 +117,7 @@ export function resolveSettings(options: CommandLineOptions, defaults?: AppSetti
 function parseSettingsFile(settingsPath: string): Q.Promise<AppSettings> {
 	return Q.Promise<AppSettings>((resolve, reject, notify) => {
 		if (fs.existsSync(settingsPath)) {
-			resolve(JSON.parse(fs.readFileSync(settingsPath, "utf8")));
+			resolve(JSON.parse(fs.readFileSync(settingsPath, "utf8").replace(/^\uFEFF/, "")));
 		} else {
 			resolve({});
 		}

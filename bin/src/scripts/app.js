@@ -15,7 +15,8 @@ var App;
         package: {
             root: process.cwd(),
             manifestGlobs: ["**/*-manifest.json"],
-            outputPath: "{auto}"
+            outputPath: "{auto}",
+            publisher: null
         }
     };
     function doPackageCreate(settings) {
@@ -27,9 +28,11 @@ var App;
             console.log("Beginning writing VSIX");
             return vsixWriter.writeVsix(settings.outputPath).then(function (outPath) {
                 console.log("VSIX written to: " + outPath);
+                return outPath;
             });
-        }).then(function () {
+        }).then(function (outPath) {
             console.log("Successfully created VSIX package.");
+            return outPath;
         });
     }
     function doPublish(settings) {
@@ -41,12 +44,13 @@ var App;
             return Q.Promise(function (resolve, reject, notify) {
                 if (!settings.package) {
                     console.log("VSIX was manually specified. Skipping generation.");
-                    resolve(null);
+                    resolve(settings.publish.vsixPath);
                 }
                 else {
                     resolve(doPackageCreate(settings.package));
                 }
-            }).then(function () {
+            }).then(function (vsixPath) {
+                settings.publish.vsixPath = vsixPath;
                 return doPublish(settings.publish);
             }).then(function () {
                 console.log("Successfully published VSIX from " + settings.publish.vsixPath + " to the gallery.");

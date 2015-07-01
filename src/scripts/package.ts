@@ -42,6 +42,11 @@ export module Package {
 		 * List of globs for searching for partial manifests
 		 */
 		manifestGlobs: string[];
+		
+		/**
+		 * If set, overrides the manifest-specified publisher
+		 */
+		publisher: string;
 	}
 	
 	/**
@@ -60,7 +65,8 @@ export module Package {
 		constructor(settings: settings.PackageSettings) {
 			this.mergeSettings = {
 				root: settings.root,
-				manifestGlobs: settings.manifestGlobs
+				manifestGlobs: settings.manifestGlobs,
+				publisher: settings.publisher
 			}
 		}
 		
@@ -141,6 +147,11 @@ export module Package {
 						Object.keys(partial).forEach((key) => {
 							this.mergeKey(key, partial[key], vsoManifest, vsixManifest);
 						});
+						
+						// Override the publisher, if set
+						if (this.mergeSettings.publisher) {
+							vsixManifest.PackageManifest.Metadata[0].Identity[0].$.Publisher = this.mergeSettings.publisher;
+						}
 					});
 					return <SplitManifest>{vsoManifest: vsoManifest, vsixManifest: vsixManifest};
 				});

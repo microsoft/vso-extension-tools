@@ -80,7 +80,7 @@ exports.resolveSettings = resolveSettings;
 function parseSettingsFile(settingsPath) {
     return Q.Promise(function (resolve, reject, notify) {
         if (fs.existsSync(settingsPath)) {
-            resolve(JSON.parse(fs.readFileSync(settingsPath, "utf8")));
+            resolve(JSON.parse(fs.readFileSync(settingsPath, "utf8").replace(/^\uFEFF/, "")));
         }
         else {
             resolve({});

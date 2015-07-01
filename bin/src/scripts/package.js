@@ -13,7 +13,8 @@ var Package;
         function Merger(settings) {
             this.mergeSettings = {
                 root: settings.root,
-                manifestGlobs: settings.manifestGlobs
+                manifestGlobs: settings.manifestGlobs,
+                publisher: settings.publisher
             };
         }
         Merger.prototype.gatherManifests = function (globPatterns) {
@@ -90,6 +91,9 @@ var Package;
                         Object.keys(partial).forEach(function (key) {
                             _this.mergeKey(key, partial[key], vsoManifest, vsixManifest);
                         });
+                        if (_this.mergeSettings.publisher) {
+                            vsixManifest.PackageManifest.Metadata[0].Identity[0].$.Publisher = _this.mergeSettings.publisher;
+                        }
                     });
                     return { vsoManifest: vsoManifest, vsixManifest: vsixManifest };
                 });

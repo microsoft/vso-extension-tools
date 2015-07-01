@@ -1,5 +1,5 @@
 # Visual Studio Online Extension Tool
-This utility packs and publishes extensions for Visual Studio Online.
+This utility packs and publishes extensions for Visual Studio Online, as well as performs applicable upgrades to existing extensions.
 
 # Usage
 ## Tooling
@@ -135,6 +135,11 @@ Your settings file is a JSON file with two root properties: `package` and `publi
          * Specify a list of globs for searching for partial manifests.
          */
         "manifestGlobs": string|string[];
+        
+        /**
+         * Provides a way to conveniently override the publisher to the specified value
+         */
+        "publisher": string;
     }
     
     /**

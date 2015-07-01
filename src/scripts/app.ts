@@ -18,11 +18,12 @@ module App {
 		package: {
 			root: process.cwd(),
 			manifestGlobs: ["**/*-manifest.json"],
-			outputPath: "{auto}"
+			outputPath: "{auto}",
+			publisher: null
 		}
 	};
 	
-	function doPackageCreate(settings: settings.PackageSettings): Q.Promise<any> {
+	function doPackageCreate(settings: settings.PackageSettings): Q.Promise<string> {
 		let merger = new package.Package.Merger(settings);
 		console.log("Beginning merge of partial manifests.");
 		return merger.merge().then((manifests) => {
@@ -31,9 +32,11 @@ module App {
 			console.log("Beginning writing VSIX");
 			return vsixWriter.writeVsix(settings.outputPath).then((outPath: string) => {
 				console.log("VSIX written to: " + outPath);
+				return outPath;
 			});
-		}).then(() => {
+		}).then((outPath) => {
 			console.log("Successfully created VSIX package.");
+			return outPath;
 		});
 	}
 	
@@ -44,14 +47,15 @@ module App {
 	
 	export function publishVsix(options: settings.CommandLineOptions): Q.Promise<any> {
 		return settings.resolveSettings(options, defaultSettings).then((settings) => {
-			return Q.Promise<any>((resolve, reject, notify) => {
+			return Q.Promise<string>((resolve, reject, notify) => {
 				if (!settings.package) {
 					console.log("VSIX was manually specified. Skipping generation.");
-					resolve(null);
+					resolve(settings.publish.vsixPath);
 				} else {
 					resolve(doPackageCreate(settings.package));
 				}
-			}).then(() => {
+			}).then((vsixPath) => {
+				settings.publish.vsixPath = vsixPath;
 				return doPublish(settings.publish);
 			}).then(() => {
 				console.log("Successfully published VSIX from " + settings.publish.vsixPath + " to the gallery.");
