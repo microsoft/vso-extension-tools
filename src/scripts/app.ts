@@ -18,7 +18,7 @@ module App {
 		package: {
 			root: process.cwd(),
 			manifestGlobs: ["**/*-manifest.json"],
-			outputPath: path.join(process.cwd(), "extension.vsix")
+			outputPath: "{auto}"
 		}
 	};
 	

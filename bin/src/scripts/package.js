@@ -225,8 +225,44 @@ var Package;
                 } });
             console.log("Manifests finished prepping.");
         };
+        VsixWriter.prototype.mkdirp = function (dirPath) {
+            var exploded = dirPath.split(/[\/\\]/);
+            if (exploded.length > 0) {
+                var current = path.join();
+                for (var i = 0; i < exploded.length; ++i) {
+                    current = path.join(current, exploded[i]);
+                    if (!fs.existsSync(current)) {
+                        fs.mkdirSync(current);
+                    }
+                }
+            }
+        };
+        VsixWriter.prototype.ensureDirExists = function (fullPath) {
+            var dir = path.dirname(fullPath);
+            this.mkdirp(dir);
+        };
+        VsixWriter.prototype.getOutputPath = function (outPath) {
+            var newPath = outPath;
+            var pub = _.get(this.vsixManifest, "PackageManifest.Metadata[0].Identity[0].$.Publisher");
+            var ns = _.get(this.vsixManifest, "PackageManifest.Metadata[0].Identity[0].$.Id");
+            var version = _.get(this.vsixManifest, "PackageManifest.Metadata[0].Identity[0].$.Version");
+            var autoName = pub + "." + ns + "-" + version + ".vsix";
+            if (outPath === "{auto}") {
+                return path.resolve(autoName);
+            }
+            else {
+                var basename = path.basename(outPath);
+                if (basename.indexOf(".") > 0) {
+                    return path.resolve(outPath);
+                }
+                else {
+                    return path.resolve(path.join(outPath, autoName));
+                }
+            }
+        };
         VsixWriter.prototype.writeVsix = function (outPath) {
             var _this = this;
+            var outputPath = this.getOutputPath(outPath);
             var vsix = new zip();
             var root = this.vsoManifest.__meta_root;
             if (!root) {
@@ -268,8 +304,9 @@ var Package;
                     compressionOptions: { level: 9 },
                     platform: process.platform
                 });
-                console.log("Writing vsix to: " + outPath);
-                return Q.nfcall(fs.writeFile, path.resolve(outPath), buffer);
+                console.log("Writing vsix to: " + outputPath);
+                _this.ensureDirExists(outputPath);
+                return Q.nfcall(fs.writeFile, outputPath, buffer);
             });
         };
         VsixWriter.prototype.genContentTypesXml = function (fileNames) {

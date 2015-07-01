@@ -3,7 +3,6 @@ var _ = require("lodash");
 var fs = require("fs");
 var logger = require("tracer");
 var package = require("./package");
-var path = require("path");
 var program = require("commander");
 var publish = require("./publish");
 var Q = require("q");
@@ -16,7 +15,7 @@ var App;
         package: {
             root: process.cwd(),
             manifestGlobs: ["**/*-manifest.json"],
-            outputPath: path.join(process.cwd(), "extension.vsix")
+            outputPath: "{auto}"
         }
     };
     function doPackageCreate(settings) {

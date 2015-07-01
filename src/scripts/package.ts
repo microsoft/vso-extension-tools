@@ -323,10 +323,57 @@ export module Package {
 		}
 		
 		/**
+		 * Recursive mkdirSync
+		 */
+		private mkdirp(dirPath: string) {
+			let exploded = dirPath.split(/[\/\\]/);
+			if (exploded.length > 0) {
+				let current = path.join();
+				for (let i = 0; i < exploded.length; ++i) {
+					current = path.join(current, exploded[i]);
+					if (!fs.existsSync(current)) {
+						fs.mkdirSync(current);
+					}
+				}
+			}
+		}
+		
+		private ensureDirExists(fullPath: string) {
+			let dir = path.dirname(fullPath);
+			this.mkdirp(dir);
+		}
+		
+		/**
+		 * If outPath is {auto}, generate an automatic file name.
+		 * Otherwise, try to determine if outPath is a directory (checking for a . in the filename)
+		 * If it is, generate an automatic filename in the given outpath
+		 * Otherwise, outPath doesn't change.
+		 */
+		private getOutputPath(outPath: string): string {
+			let newPath = outPath;
+			let pub = _.get(this.vsixManifest, "PackageManifest.Metadata[0].Identity[0].$.Publisher");
+			let ns = _.get(this.vsixManifest, "PackageManifest.Metadata[0].Identity[0].$.Id");
+			let version = _.get(this.vsixManifest, "PackageManifest.Metadata[0].Identity[0].$.Version");
+			let autoName = pub + "." + ns + "-" + version + ".vsix";
+			
+			if (outPath === "{auto}") {
+				return path.resolve(autoName);
+			} else {
+				let basename = path.basename(outPath);
+				if (basename.indexOf(".") > 0) { // conscious use of >
+					return path.resolve(outPath);
+				} else {
+					return path.resolve(path.join(outPath, autoName));
+				}
+			}
+		}
+		
+		/**
 		 * Write a vsix package to the given file name
 		 * @param stream.Writable Stream to write the vsix package
 		 */
 		public writeVsix(outPath: string): Q.Promise<any> {
+			let outputPath = this.getOutputPath(outPath);
 			let vsix = new zip();
 			let root = this.vsoManifest.__meta_root;
 			if (!root) {
@@ -372,8 +419,9 @@ export module Package {
 					compressionOptions: { level: 9 },
 					platform: process.platform
 				});
-				console.log("Writing vsix to: " + outPath);
-				return Q.nfcall(fs.writeFile, path.resolve(outPath), buffer);
+				console.log("Writing vsix to: " + outputPath);
+				this.ensureDirExists(outputPath);
+				return Q.nfcall(fs.writeFile, outputPath, buffer);
 			});
 				
 		}
