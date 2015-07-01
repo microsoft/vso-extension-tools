@@ -50,14 +50,15 @@ var Package;
                 var manifestPromises = [];
                 files.forEach(function (file) {
                     manifestPromises.push(Q.nfcall(fs.readFile, file, "utf8").then(function (data) {
+                        var jsonData = data.replace(/^\uFEFF/, '');
                         try {
-                            var result = JSON.parse(data);
+                            var result = JSON.parse(jsonData);
                             result.__origin = file;
                             return result;
                         }
                         catch (err) {
                             console.log("Error parsing the JSON in " + file + ": ");
-                            console.log(data);
+                            console.log(jsonData);
                             throw err;
                         }
                     }));
@@ -306,7 +307,9 @@ var Package;
                 });
                 console.log("Writing vsix to: " + outputPath);
                 _this.ensureDirExists(outputPath);
-                return Q.nfcall(fs.writeFile, outputPath, buffer);
+                return Q.nfcall(fs.writeFile, outputPath, buffer).then(function () {
+                    return outputPath;
+                });
             });
         };
         VsixWriter.prototype.genContentTypesXml = function (fileNames) {

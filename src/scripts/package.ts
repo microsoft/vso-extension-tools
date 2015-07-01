@@ -99,13 +99,14 @@ export module Package {
 				let manifestPromises: Q.Promise<any>[] = [];
 				files.forEach((file) => {
 					manifestPromises.push(Q.nfcall<any>(fs.readFile, file, "utf8").then((data) => {
+						let jsonData = data.replace(/^\uFEFF/, '');
 						try {
-							let result = JSON.parse(data);
+							let result = JSON.parse(jsonData);
 							result.__origin = file; // save the origin in order to resolve relative paths later.
 							return result;	
 						} catch (err) {
 							console.log("Error parsing the JSON in " + file + ": ");
-							console.log(data);
+							console.log(jsonData);
 							throw err;
 						}
 					}));
@@ -421,7 +422,9 @@ export module Package {
 				});
 				console.log("Writing vsix to: " + outputPath);
 				this.ensureDirExists(outputPath);
-				return Q.nfcall(fs.writeFile, outputPath, buffer);
+				return Q.nfcall(fs.writeFile, outputPath, buffer).then(() => {
+					return outputPath;
+				});
 			});
 				
 		}

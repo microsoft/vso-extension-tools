@@ -145,12 +145,8 @@ var ToM85 = (function () {
         var _this = this;
         return Q.nfcall(fs.readFile, this.srcPath, "utf8").then(function (contents) {
             var old;
-            if (contents[0] !== "{") {
-                old = JSON.parse(contents.substr(1));
-            }
-            else {
-                old = JSON.parse(contents);
-            }
+            var jsonData = contents.replace(/^\uFEFF/, '');
+            old = JSON.parse(jsonData);
             var upgraded = { manifestVersion: null };
             if (_.isObject(old)) {
                 var oldKeys = Object.keys(old);

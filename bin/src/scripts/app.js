@@ -25,11 +25,11 @@ var App;
             console.log("Merge completed.");
             var vsixWriter = new package.Package.VsixWriter(manifests.vsoManifest, manifests.vsixManifest);
             console.log("Beginning writing VSIX");
-            return vsixWriter.writeVsix(settings.outputPath).then(function () {
-                console.log("VSIX written to: " + settings.outputPath);
+            return vsixWriter.writeVsix(settings.outputPath).then(function (outPath) {
+                console.log("VSIX written to: " + outPath);
             });
         }).then(function () {
-            console.log("Successfully created VSIX package " + settings.outputPath + ".");
+            console.log("Successfully created VSIX package.");
         });
     }
     function doPublish(settings) {

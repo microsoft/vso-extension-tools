@@ -29,11 +29,11 @@ module App {
 			console.log("Merge completed.");
 			let vsixWriter = new package.Package.VsixWriter(manifests.vsoManifest, manifests.vsixManifest);
 			console.log("Beginning writing VSIX");
-			return vsixWriter.writeVsix(settings.outputPath).then(() => {
-				console.log("VSIX written to: " + settings.outputPath);
+			return vsixWriter.writeVsix(settings.outputPath).then((outPath: string) => {
+				console.log("VSIX written to: " + outPath);
 			});
 		}).then(() => {
-			console.log("Successfully created VSIX package " + settings.outputPath + ".");
+			console.log("Successfully created VSIX package.");
 		});
 	}
 	

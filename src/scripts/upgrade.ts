@@ -243,11 +243,9 @@ export class ToM85 {
 			let old: any;
 			
 			// BOM check
-			if (contents[0] !== "{") {
-				old = JSON.parse(contents.substr(1));
-			} else {
-				old = JSON.parse(contents);
-			}
+			let jsonData = contents.replace(/^\uFEFF/, '');
+			old = JSON.parse(jsonData);
+			
 			let upgraded = <any>{manifestVersion: null};
 			if (_.isObject(old)) {
 				var oldKeys = Object.keys(old);
