@@ -1,17 +1,13 @@
-# Extension Packer
-This utility packs and publishes extensions for Visual Studio Online, Visual Studio (planned) and Visual Studio Code (planned).
+# Visual Studio Online Extension Tool
+This utility packs and publishes extensions for Visual Studio Online.
 
 # Usage
 ## Tooling
-This app requires [NodeJS](http://nodejs.org), NPM (included with the NodeJS installer), and the TypeScript Compiler v1.5.0-beta (which can be obtained using `npm i -g typescript`).
+This app requires [NodeJS](http://nodejs.org) and npm (included with the NodeJS installer). 
 
 ## Setup
-1. Clone the repository
-2. `cd` into the directory
-3. Run `npm install`
-4. Run `tsc -p .`
-
-You can also open the directory in Visual Studio Code and build using Ctrl+Shift+B.
+1. Run `npm install -g vset`.
+2. The tool can be run using `vset.cmd` or by invoking `node app.js`.
 
 ### Prep your manifest(s)
 This tool will merge any number of manifest files (all in JSON format) into the required .vsomanifest and .vxismanifest files. If you are using this tool with an extension for the first time, you may need to add a few things to your manifest:
@@ -28,56 +24,35 @@ This tool will merge any number of manifest files (all in JSON format) into the 
 
     <p><strong>Note</strong>: Paths should be relative to the manifest file.</p></li>
     <li>Additionally, you may want to add properties for <code>"tags"</code>, <code>"categories"</code>, and <code>"VSOFlags"</code>, each of which should be a list of strings.</li>
-    <li>Extensions will be private by default. To specify a public extension, add <code>"public": true</code>.
+    <li>Extensions will be private by default. To specify a public extension, add <code>"public": true</code>.</li>
 </ol>
 
 ## Run
-If you are on Windows, simply invoke the packext.cmd helper to run the app. Otherwise, invoke node with public/src/scripts/app.js.
+If you are on Windows, simply invoke the vset.cmd helper to run the tool. Otherwise, invoke `node app.js`.
 
-There are four commands:
+There are five commands:
 
 * `package`. Generate a VSIX package from a set of partial manifests and assets.
 * `publish`. Publish a VSIX package, which is either manually specified or generated.
 * `create-publisher`. Create a publisher in the gallery.
 * `delete-publisher`. Delete a publisher in the gallery.
+* `toM85`. Upgrade a manifest to the M85 format.
 
-To see a list of commands, run `packext --help`. To get help, including available options, for any command, run `packext <command> --help`.
+To see a list of commands, run `vset --help`. To get help, including available options, for any command, run `vset <command> --help`.
 
 ### Package
-This command packages a VSIX file with your extension manifest and your assets, ready to be published to the Gallery. You have two options for supplying inputs to this command: using a settings file, or using command-line flags. Otherwise, the following defaults will be used:
+This command packages a VSIX file with your extension manifest and your assets, ready to be published to the Gallery. You have two options for supplying inputs to this command: using command-line flags or using a settings file (see below). Otherwise, the following defaults will be used:
 
-* `outputPath`: &lt;current working directory&gt;/extension.vsix
-* `root`: &lt;current working directory&gt;
-* `manifestGlobs`: \*\*/\*-manifest.json
+* `outputPath`: *current working directory*/*publisher*.*extension_namespace*-*version*.vsix
+* `root`: *current working directory*
+* `manifestGlob`: \*\*/\*-manifest.json
 
-#### Settings file
-See the settings_example.json file for an example.
-
-Your settings file is a JSON file with two root properties: `package` and `publish`. The package property contains a nested object with the following properties:
-```typescript
-{
-    /**
-     * Specify the root folder from which the manifest globs should search for manifests.
-     */
-    "root": string;
-    
-    /**
-     * Specify the output path and filename for the generated VSIX file.
-     */
-    "outputPath": string;
-    
-    /**
-     * Specify a list of globs for searching for partial manifests.
-     */
-    "manifestGlobs": string|string[];
-}
-```
 Invoke the app with the command `package`. If ./settings.json exists, that will be used. Otherwise use the `--settings` option to specify the path to your settings file. E.g.:
 
-`packext package --settings path/to/settings.json`
+`vset package --settings path/to/settings.json`
 
 #### Command-line arguments
-Alternatively, you can use the following command-line arguments in lieu of the settings file:  
+You can use the following command-line arguments to override the defaults:
 ```txt
 -r, --root <string>
 -o, --output-path <string>
@@ -85,68 +60,100 @@ Alternatively, you can use the following command-line arguments in lieu of the s
 ```
 **Note**: When using command-line arguments, only one glob can be specified for finding manifests
 
+#### Examples
+`vset package --root . --output-path C:\temp\myextension.vsix --manifest-glob **/*.json` - use command line options to package a VSIX
+
+`vset package` - use ./settings.json (see below) or defaults (if settings.json does not exist) to package a VSIX
+
 ### Publish
-This command publishes a VSIX file to the Gallery. The VSIX can either be generated (default) or specified manually. The publish property in your settings file contains a nested object with the following properties:
-```typescript
-{
-    /**
-     * Specify the URL to the Gallery.
-     */
-    "galleryUrl": string;
-    
-    /**
-     * Specify the personal access token that will be used to authenticate the publish request.
-     */
-    "token": string;
-    
-    /**
-     * Specify a path to the VSIX file that will get published. If this is omitted, 
-     * the tool will auto-generate the package based on the package settings (see above).
-     */
-    "vsixPath": string;
-}
+This command publishes a VSIX file to the Gallery. The VSIX can either be generated (default) or specified manually. You must specify two options for publishing:
+
+```txt
+-t, --token <string>       - Specify your personal access token.
+-g, --gallery-url <string> - Specify the URL to the Visual Studio Online Gallery.
+-v, --vsix <string>        - If specified, publishes the VSIX at this path instead of auto-packaging
 ```
+
 To get a personal access token, navigate to `https://<your_account_url>/_details/security/tokens` and **Add** a new token for **All accessible accounts** and **All scopes**. Copy and paste the generated token into the settings.json file.
+
+If you do not specify the `--vsix` argument, the tool will first package the VSIX. In this case, you may additionally specify the arguments from the package section or rely on the defaults.
 
 #### Temporary path for VSIX
 If you don't want to keep the generated VSIX around after it is published, you can specify to use a temporary path in *package settings*. Simply use `{tmp}` as the outputPath. Note: The generated VSIX will be deleted after it is published.
 
-#### Command-line arguments
-Alternatively, you can use the following command-line arguments in lieu of the settings file:  
-```txt
--g, --gallery-url <string>
--t, --token <string>
--v, --vsix <string>
-```
+#### Examples
+
+`vset publish --root . --output-path C:\temp\myextension.vsix --manifest-glob **/*.json --gallery-url https://gallery.visualstudio.com --token xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`
+
+`vset publish --vsix C:\temp\existingextension.vsix --gallery-url https://gallery.visualstudio.com --token xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`
+
+`vset publish` - use ./settings.json (see below) to publish a VSIX (which may be packaged also, depending on the presence of the publish.vsixPath property
 
 ### Create and Delete Publisher
 These commands are used to create or delete a publisher. When creating a publisher, you must specify the same galleryUrl and token that are required for publishing (either using a settings.json file or command line options).
 
-`create-publisher` [options] &lt;unique_name&gt; &lt;display_name&gt; &lt;description&gt;
+`create-publisher [options] &lt;unique_name&gt; &lt;display_name&gt; &lt;description&gt;`
 
-`delete-publisher` [options] &lt;unique_name&gt;
+`delete-publisher [options] &lt;unique_name&gt;`
 
-### Fiddler
+#### Examples
+`vset create-publisher "fabrikamCorp" "Fabrikam, inc." "This is Fabrikam, inc.'s main publisher." --gallery-url https://gallery.visualstudio.com --token xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx``
+
+`vset delete-publisher "fabrikamCorp"` - Use a settings.json file (see below)
+
+### Advanced
+
+#### Settings file
+See the settings_example.json file for an example.
+
+You may create a settings file (JSON format) to specify options instead of passing them as inputs each time. By default, the tool will look for ./settings.json if no settings file is specified. Otherwise, you may specify the path using the `--settings <path_to_settings>` option.
+
+Your settings file is a JSON file with two root properties: `package` and `publish`. Each of those points to a nested object with their respective settings, modeled by the following schema:
+```typescript
+{
+    /**
+     * Settings for VSIX packaging
+     */
+    "package" {
+        /**
+         * Specify the root folder from which the manifest globs should search for manifests.
+         */
+        "root": string;
+        
+        /**
+         * Specify the output path and filename for the generated VSIX file.
+         */
+        "outputPath": string;
+        
+        /**
+         * Specify a list of globs for searching for partial manifests.
+         */
+        "manifestGlobs": string|string[];
+    }
+    
+    /**
+     * Settings for publishing and publisher management
+     */
+    "publish" {
+        /**
+         * URL to the Visual Studio Online Gallery
+         */
+        "galleryUrl": string;
+        
+        /**
+         * Personal Access Token (52-character alphanumeric string)
+         * for publishing extensions (all accounts, all scopes)
+         */
+		"token": string;
+        
+        /**
+         * Path to a VSIX to be published. If not specified, the
+         * VSIX will be generated using package settings above
+         */
+		"vsixPath": string;
+    }
+}
+```
+
+#### Fiddler
 If you want your requests to route through the Fiddler proxy, you must pass in the `--fiddler` option. Fiddler must be open if this is passed; otherwise all requests will fail.
-
-### Examples
-
-#### Package
-`packext package` - use ./settings.json (or defaults) to package a VSIX
-
-`packext package --root . --output-path C:\temp\myextension.vsix --manifest-glob **/*.json` - use command line options to package a VSIX
-
-#### Publish
-`packext publish` - use ./settings.json to publish a VSIX (which may be packaged also, depending on the presence of the publish.vsixPath property
-
-`packext publish --root . --output-path C:\temp\myextension.vsix --manifest-glob **/*.json`
-
-`packext publish --vsix C:\temp\existingextension.vsix`
-
-`packext publish --vsix C:\temp\existingextension.vsix --gallery-url https://gallery.visualstudio.com --token xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`
-
-#### Create publisher
-`packext create-publisher "fabrikamCorp" "Fabrikam, inc." "This is Fabrikam, inc.'s main publisher."`
-
-#### Delete publisher
-`packext delete-publisher "fabrikamCorp"`
