@@ -202,7 +202,7 @@ export module Package {
 						let iconPath = value["default"].replace(/\\/g, "/");
 						assets.push({
 							"$": {
-								"Type": "Microsoft.VisualStudio.Services.Icon.Default",
+								"Type": "Microsoft.VisualStudio.Services.Icons.Default",
 								"d:Source": "File",
 								"Path": iconPath
 							}
@@ -215,7 +215,7 @@ export module Package {
 						let assets = _.get<any>(vsixManifest, "PackageManifest.Assets[0].Asset");
 						assets.push({
 							"$": {
-								"Type": "Microsoft.VisualStudio.Services.Icon.Wide",
+								"Type": "Microsoft.VisualStudio.Services.Icons.Wide",
 								"d:Source": "File",
 								"Path": value["wide"].replace(/\\/g, "/")
 							}
@@ -290,7 +290,7 @@ export module Package {
 									"Path": assetPath
 								}
 							});
-							if (asset.type === "Microsoft.VisualStudio.Services.Icon.Default") {
+							if (asset.type === "Microsoft.VisualStudio.Services.Icons.Default") {
 								vsixManifest.PackageManifest.Metadata[0].Icon = [assetPath];
 							}
 						});

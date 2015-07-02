@@ -168,7 +168,7 @@ program
     .option("-s, --settings <settings_path>", "Specify the path to a settings file")
     .action(App.deletePublisher);
 program
-    .command("toM85 <path_to_manifest> <publisher_name> [output_path]")
+    .command("migrate <path_to_manifest> <publisher_name> [output_path]")
     .description("Convert a manifest to the new contribution model introduced in M85.")
     .option("-f, --force-overwrite", "Overwrite an existing file, or overwrite the original manifest when output_path is not specified.")
     .action(App.toM85);

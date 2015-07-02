@@ -147,7 +147,8 @@ var ToM85 = (function () {
             var old;
             var jsonData = contents.replace(/^\uFEFF/, "");
             old = JSON.parse(jsonData);
-            var upgraded = { manifestVersion: null };
+            var upgraded = { manifestVersion: null, id: null, version: null, publisher: null };
+            upgraded.publisher = _this.publisherName;
             if (_.isObject(old)) {
                 if (_.isArray(old.contributions)) {
                     throw "This manifest appears to already be upgraded to M85!";
@@ -165,7 +166,6 @@ var ToM85 = (function () {
             else {
                 throw "Input is not a valid manifest";
             }
-            upgraded.publisher = _this.publisherName;
             if (!upgraded.manifestVersion) {
                 upgraded.manifestVersion = 1.0;
             }

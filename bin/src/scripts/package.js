@@ -113,6 +113,7 @@ var Package;
             switch (key.toLowerCase()) {
                 case "namespace":
                 case "extensionid":
+                case "id":
                     if (_.isString(value)) {
                         vsixManifest.PackageManifest.Metadata[0].Identity[0].$.Id = value.replace(/\./g, "-");
                     }
@@ -138,7 +139,7 @@ var Package;
                         var iconPath = value["default"].replace(/\\/g, "/");
                         assets.push({
                             "$": {
-                                "Type": "Microsoft.VisualStudio.Services.Icon.Default",
+                                "Type": "Microsoft.VisualStudio.Services.Icons.Default",
                                 "d:Source": "File",
                                 "Path": iconPath
                             }
@@ -149,7 +150,7 @@ var Package;
                         var assets = _.get(vsixManifest, "PackageManifest.Assets[0].Asset");
                         assets.push({
                             "$": {
-                                "Type": "Microsoft.VisualStudio.Services.Icon.Wide",
+                                "Type": "Microsoft.VisualStudio.Services.Icons.Wide",
                                 "d:Source": "File",
                                 "Path": value["wide"].replace(/\\/g, "/")
                             }
@@ -223,7 +224,7 @@ var Package;
                                     "Path": assetPath
                                 }
                             });
-                            if (asset.type === "Microsoft.VisualStudio.Services.Icon.Default") {
+                            if (asset.type === "Microsoft.VisualStudio.Services.Icons.Default") {
                                 vsixManifest.PackageManifest.Metadata[0].Icon = [assetPath];
                             }
                         });
