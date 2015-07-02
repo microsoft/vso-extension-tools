@@ -245,7 +245,11 @@ export class ToM85 {
 			// BOM check
 			let jsonData = contents.replace(/^\uFEFF/, "");
 			old = JSON.parse(jsonData);
-			let upgraded = <any>{manifestVersion: null};
+			
+			// Set some properties to null to force a property order
+			let upgraded = <any>{manifestVersion: null, id: null, version: null, publisher: null};
+			upgraded.publisher = this.publisherName;
+			
 			if (_.isObject(old)) {
 				if (_.isArray(old.contributions)) {
 					throw "This manifest appears to already be upgraded to M85!";
@@ -261,7 +265,6 @@ export class ToM85 {
 			} else {
 				throw "Input is not a valid manifest";
 			}
-			upgraded.publisher = this.publisherName;
 			if (!upgraded.manifestVersion) {
 				upgraded.manifestVersion = 1.0;
 			}

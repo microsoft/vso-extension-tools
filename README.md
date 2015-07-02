@@ -42,7 +42,7 @@ There are five commands:
 * `publish`. Publish a VSIX package, which is either manually specified or generated.
 * `create-publisher`. Create a publisher in the gallery.
 * `delete-publisher`. Delete a publisher in the gallery.
-* `toM85`. Upgrade a manifest to the M85 format.
+* `migrate`. Upgrade a manifest to the M85 format.
 
 To see a list of commands, run `vset --help`. To get help, including available options, for any command, run `vset <command> --help`.
 
@@ -106,6 +106,20 @@ These commands are used to create or delete a publisher. When creating a publish
 `vset create-publisher "fabrikamCorp" "Fabrikam, inc." "This is Fabrikam, inc.'s main publisher." --gallery-url https://gallery.visualstudio.com --token xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`
 
 `vset delete-publisher "fabrikamCorp"` - Use a settings.json file (see below)
+
+### Migrate
+Use this command to migrate a manifest to the new model introduced in M85. For any items that may require your attention, you will see a warning.
+
+Migrate requires two arguments, `path_to_manifest` and `publisher_name`. The 3rd argument, `output_path`, is optional.
+`path_to_manifest` - Specify an absolute or relative path to the manifest you wish to migrate to M85.
+`publisher_name` - Specify the name of the publisher you created in the VSO Gallery.
+`output_path` - Specify an absolute or relative path to write the upgraded JSON. If omitted, overwrite the original file at `path_to_manifest`.
+
+If there already exists a file at `output_path` (or if it is omitted), you must specify `-f` or `--force` to overwrite that file. 
+
+#### Examples
+`vset migrate extension.json MyPublisher extension-m85.json` - Migrate and write the result to extension-m85.json.
+`vset migrate extension.json MyPublisher --force` - Migrate and overwrite the original file. 
 
 ### Advanced
 

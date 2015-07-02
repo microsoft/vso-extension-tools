@@ -172,6 +172,7 @@ export module Package {
 			switch(key.toLowerCase()) {
 				case "namespace":
 				case "extensionid":
+				case "id":
 					// Assert string value
 					if (_.isString(value)) {
 						vsixManifest.PackageManifest.Metadata[0].Identity[0].$.Id = value.replace(/\./g, "-");
