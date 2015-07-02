@@ -195,6 +195,32 @@ export module Package {
 				case "versioncheckuri":
 					vsoManifest.versionCheckUri = value;
 					break;
+				case "icons":
+					if (_.isString(value["default"])) {
+						let assets = _.get<any>(vsixManifest, "PackageManifest.Assets[0].Asset");
+						let iconPath = value["default"].replace(/\\/g, "/");
+						assets.push({
+							"$": {
+								"Type": "Microsoft.VisualStudio.Services.Icon.Default",
+								"d:Source": "File",
+								"Path": iconPath
+							}
+						});
+						
+						// Default icon is also the package icon
+						vsixManifest.PackageManifest.Metadata[0].Icon = [iconPath];
+					}
+					if (_.isString(value["wide"])) {
+						let assets = _.get<any>(vsixManifest, "PackageManifest.Assets[0].Asset");
+						assets.push({
+							"$": {
+								"Type": "Microsoft.VisualStudio.Services.Icon.Wide",
+								"d:Source": "File",
+								"Path": value["wide"].replace(/\\/g, "/")
+							}
+						});
+					}
+					break;
 				case "manifestversion":
 					let version = value;
 					if (_.isString(version)) {
@@ -207,12 +233,12 @@ export module Package {
 					break;
 				case "public": 
 					if (typeof value === "boolean") {
-						let flags = _.get(vsixManifest, "PackageManifest.Metadata[0].VSOFlags[0]", "").split(",");
+						let flags = _.get(vsixManifest, "PackageManifest.Metadata[0].GalleryFlags[0]", "").split(",");
 						_.remove(flags, v => v === "");
 						if (value === true) {
 							flags.push("Public");
 						}
-						_.set(vsixManifest, "PackageManifest.Metadata[0].VSOFlags[0]", _.uniq(flags).join(","));
+						_.set(vsixManifest, "PackageManifest.Metadata[0].GalleryFlags[0]", _.uniq(flags).join(","));
 						vsoManifest.__meta_public = value;
 					}
 					break;
@@ -231,7 +257,8 @@ export module Package {
 					this.handleDelimitedList(value, vsixManifest, "PackageManifest.Metadata[0].Tags[0]");
 					break;
 				case "vsoflags":
-					this.handleDelimitedList(value, vsixManifest, "PackageManifest.Metadata[0].VSOFlags[0]");
+				case "galleryflags":
+					this.handleDelimitedList(value, vsixManifest, "PackageManifest.Metadata[0].GalleryFlags[0]");
 					break;
 				case "categories":
 					this.handleDelimitedList(value, vsixManifest, "PackageManifest.Metadata[0].Categories[0]");
@@ -253,15 +280,18 @@ export module Package {
 					break;
 				case "assets": // fix me
 					if (_.isArray(value)) {
-						vsixManifest.PackageManifest.Assets = [{"Asset": []}];
 						value.forEach((asset: AssetDeclaration) => {
+							let assetPath = asset.path.replace(/\\/g, "/");
 							vsixManifest.PackageManifest.Assets[0].Asset.push({
 								"$": {
 									"Type": asset.type,
 									"d:Source": "File",
-									"Path": asset.path.replace(/\\/g, "/")
+									"Path": assetPath
 								}
 							});
+							if (asset.type === "Microsoft.VisualStudio.Services.Icon.Default") {
+								vsixManifest.PackageManifest.Metadata[0].Icon = [assetPath];
+							}
 						});
 					}
 					break;
@@ -319,7 +349,8 @@ export module Package {
 			let assets = _.get<any[]>(this.vsixManifest, "PackageManifest.Assets[0].Asset");
 			if (assets) {
 				_.remove(assets, (asset) => {
-					return _.get(asset, "$.Type", "x").toLowerCase() === "microsoft.vso.manifest";
+					let type = _.get(asset, "$.Type", "x").toLowerCase();
+					return type === "microsoft.vso.manifest" || type === "microsoft.visualstudio.services.manifest";
 				});
 			} else {
 				assets = [];
@@ -327,7 +358,7 @@ export module Package {
 			}
 			
 			assets.push({$:{
-				Type: "Microsoft.VSO.Manifest",
+				Type: "Microsoft.VisualStudio.Services.Manifest",
 				Path: VsixWriter.VSO_MANIFEST_FILENAME
 			}});
 			
@@ -391,20 +422,18 @@ export module Package {
 			if (!root) {
 				throw "Manifest root unknown. Manifest objects should have a __meta_root key specifying the absolute path to the root of assets.";
 			}
-			
 			// Add assets to vsix archive
 			let assets = <any[]>_.get(this.vsixManifest, "PackageManifest.Assets[0].Asset");
 			if (_.isArray(assets)) {
 				assets.forEach((asset) => {
 					if (asset.$) {
-						if (asset.$.Type === "Microsoft.VSO.Manifest") {
+						if (asset.$.Type === "Microsoft.VisualStudio.Services.Manifest") {
 							return; // skip the vsomanifest, it is added later.
 						}
 						vsix.file((<string>asset.$.Path).replace(/\\/g, "/"), fs.readFileSync(path.join(root, asset.$.Path)));
 					}
 				});
 			}
-			
 			// Write the manifests to a temporary path and add them to the zip
 			return Q.Promise<string>((resolve, reject, notify) => {
 				tmp.dir({unsafeCleanup: true}, (err, tmpPath, cleanupCallback) => {

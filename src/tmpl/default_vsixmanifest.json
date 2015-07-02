@@ -46,7 +46,7 @@
                 "InstallationTarget": [
                     {
                         "$": {
-                            "Id": "Microsoft.VSO"
+                            "Id": "Microsoft.VisualStudio.Services"
                         }
                     }
                 ]

@@ -172,7 +172,6 @@ program
     .description("Convert a manifest to the new contribution model introduced in M85.")
     .option("-f, --force-overwrite", "Overwrite an existing file, or overwrite the original manifest when output_path is not specified.")
     .action(App.toM85);
-program.command("test").action(function () { console.log("test!"); });
 program.parse(process.argv);
 var commandNames = program["commands"].map(function (c) { return c._name; });
 if (program["rawArgs"].length < 3 || commandNames.indexOf(program["rawArgs"][2]) === -1) {

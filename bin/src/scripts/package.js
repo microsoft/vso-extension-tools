@@ -132,6 +132,30 @@ var Package;
                 case "versioncheckuri":
                     vsoManifest.versionCheckUri = value;
                     break;
+                case "icons":
+                    if (_.isString(value["default"])) {
+                        var assets = _.get(vsixManifest, "PackageManifest.Assets[0].Asset");
+                        var iconPath = value["default"].replace(/\\/g, "/");
+                        assets.push({
+                            "$": {
+                                "Type": "Microsoft.VisualStudio.Services.Icon.Default",
+                                "d:Source": "File",
+                                "Path": iconPath
+                            }
+                        });
+                        vsixManifest.PackageManifest.Metadata[0].Icon = [iconPath];
+                    }
+                    if (_.isString(value["wide"])) {
+                        var assets = _.get(vsixManifest, "PackageManifest.Assets[0].Asset");
+                        assets.push({
+                            "$": {
+                                "Type": "Microsoft.VisualStudio.Services.Icon.Wide",
+                                "d:Source": "File",
+                                "Path": value["wide"].replace(/\\/g, "/")
+                            }
+                        });
+                    }
+                    break;
                 case "manifestversion":
                     var version = value;
                     if (_.isString(version)) {
@@ -144,12 +168,12 @@ var Package;
                     break;
                 case "public":
                     if (typeof value === "boolean") {
-                        var flags = _.get(vsixManifest, "PackageManifest.Metadata[0].VSOFlags[0]", "").split(",");
+                        var flags = _.get(vsixManifest, "PackageManifest.Metadata[0].GalleryFlags[0]", "").split(",");
                         _.remove(flags, function (v) { return v === ""; });
                         if (value === true) {
                             flags.push("Public");
                         }
-                        _.set(vsixManifest, "PackageManifest.Metadata[0].VSOFlags[0]", _.uniq(flags).join(","));
+                        _.set(vsixManifest, "PackageManifest.Metadata[0].GalleryFlags[0]", _.uniq(flags).join(","));
                         vsoManifest.__meta_public = value;
                     }
                     break;
@@ -168,7 +192,8 @@ var Package;
                     this.handleDelimitedList(value, vsixManifest, "PackageManifest.Metadata[0].Tags[0]");
                     break;
                 case "vsoflags":
-                    this.handleDelimitedList(value, vsixManifest, "PackageManifest.Metadata[0].VSOFlags[0]");
+                case "galleryflags":
+                    this.handleDelimitedList(value, vsixManifest, "PackageManifest.Metadata[0].GalleryFlags[0]");
                     break;
                 case "categories":
                     this.handleDelimitedList(value, vsixManifest, "PackageManifest.Metadata[0].Categories[0]");
@@ -189,15 +214,18 @@ var Package;
                     break;
                 case "assets":
                     if (_.isArray(value)) {
-                        vsixManifest.PackageManifest.Assets = [{ "Asset": [] }];
                         value.forEach(function (asset) {
+                            var assetPath = asset.path.replace(/\\/g, "/");
                             vsixManifest.PackageManifest.Assets[0].Asset.push({
                                 "$": {
                                     "Type": asset.type,
                                     "d:Source": "File",
-                                    "Path": asset.path.replace(/\\/g, "/")
+                                    "Path": assetPath
                                 }
                             });
+                            if (asset.type === "Microsoft.VisualStudio.Services.Icon.Default") {
+                                vsixManifest.PackageManifest.Metadata[0].Icon = [assetPath];
+                            }
                         });
                     }
                     break;
@@ -217,7 +245,8 @@ var Package;
             var assets = _.get(this.vsixManifest, "PackageManifest.Assets[0].Asset");
             if (assets) {
                 _.remove(assets, function (asset) {
-                    return _.get(asset, "$.Type", "x").toLowerCase() === "microsoft.vso.manifest";
+                    var type = _.get(asset, "$.Type", "x").toLowerCase();
+                    return type === "microsoft.vso.manifest" || type === "microsoft.visualstudio.services.manifest";
                 });
             }
             else {
@@ -225,7 +254,7 @@ var Package;
                 _.set(this.vsixManifest, "PackageManifest.Assets[0].Asset[0]", assets);
             }
             assets.push({ $: {
-                    Type: "Microsoft.VSO.Manifest",
+                    Type: "Microsoft.VisualStudio.Services.Manifest",
                     Path: VsixWriter.VSO_MANIFEST_FILENAME
                 } });
             console.log("Manifests finished prepping.");
@@ -277,7 +306,7 @@ var Package;
             if (_.isArray(assets)) {
                 assets.forEach(function (asset) {
                     if (asset.$) {
-                        if (asset.$.Type === "Microsoft.VSO.Manifest") {
+                        if (asset.$.Type === "Microsoft.VisualStudio.Services.Manifest") {
                             return;
                         }
                         vsix.file(asset.$.Path.replace(/\\/g, "/"), fs.readFileSync(path.join(root, asset.$.Path)));
