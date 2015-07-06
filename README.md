@@ -15,21 +15,30 @@ This tool will merge any number of manifest files (all in JSON format) into the 
 <ol>
     <li>Add <code>"publisher": "yourpublishername"</code> to the manifest. "yourpublishername" should be replaced by the <strong>same name as the publisher you created in the Gallery</strong>.</li>
     <li>
-        <p>Add assets that go into the VSIX package. For example:</p>
+        <p>Update the <code>icon</code> property to <code>icons</code>. Currently, we support a <code>default</code> and a <code>wide</code> icon. For example:</p>
         <p>
-            <pre><code>"assets": [
-    {
-        "type": "Microsoft.VSO.LargeIcon",
-        "path": "images/fabrikam-logo.png"
-    }
-],
+            <pre><code>"icons": {
+    "default": "images/fabrikam-default.png",
+    "wide": "images/fabrikam-wide.png"
+}
             </code></pre>
         </p>
         <p>
             <strong>Note</strong>: Paths should be relative to the manifest file.
         </p>
     </li>
-    <li>Additionally, you may want to add properties for <code>"tags"</code>, <code>"categories"</code>, and <code>"VSOFlags"</code>, each of which should be a list of strings.</li>
+    <li>
+        Additionally, you may want to add properties for <code>"tags"</code> and <code>"categories"</code>, each of which should be a list of strings. The following strings are valid categories: 
+        <ul>
+            <li>Build and release</li>
+            <li>Collaboration</li>
+            <li>Customer support</li>
+            <li>Planning</li>
+            <li>Productivity</li>
+            <li>Sync and integration</li>
+            <li>Testing</li>
+        </ul>
+    </li>
     <li>Extensions will be private by default. To specify a public extension, add <code>"public": true</code>.</li>
 </ol>
 
