@@ -209,6 +209,9 @@ var Package;
                     break;
                 case "contributiontypes":
                     if (_.isArray(value)) {
+                        if (!vsoManifest.contributionTypes) {
+                            vsoManifest.contributionTypes = [];
+                        }
                         vsoManifest.contributionTypes = vsoManifest.contributionTypes.concat(value);
                     }
                     break;
