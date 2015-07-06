@@ -13,3 +13,4 @@
 /// <reference path="request/request.d.ts" />
 /// <reference path="form-data/form-data.d.ts" />
 /// <reference path="tracer/tracer.d.ts" />
+/// <reference path="inquirer/inquirer.d.ts" />

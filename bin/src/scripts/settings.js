@@ -7,7 +7,7 @@ var program = require("commander");
 var tmp = require("tmp");
 function resolveSettings(options, defaults) {
     var passedOptions = {};
-    var settingsPath = path.resolve("settings.json");
+    var settingsPath = path.resolve("settings.vset.json");
     var defaultSettings = defaults || {};
     if (options.manifestGlob) {
         _.set(passedOptions, "package.manifestGlobs", [options.manifestGlob]);
@@ -23,6 +23,21 @@ function resolveSettings(options, defaults) {
     }
     if (options.vsix) {
         _.set(passedOptions, "publish.vsixPath", options.vsix);
+    }
+    var parsedOverrides, args = process.argv.slice(2);
+    for (var i = 0; i < args.length; ++i) {
+        var arg = args[i];
+        if (arg === "--override") {
+            if (args[i + 1]) {
+                try {
+                    parsedOverrides = JSON.parse(args[i + 1]);
+                    _.set(passedOptions, "package.overrides", parsedOverrides);
+                }
+                catch (e) {
+                }
+            }
+            break;
+        }
     }
     return Q.Promise(function (resolve, reject, notify) {
         if (settingsPath) {

@@ -3,53 +3,53 @@ declare module "tracer" {
 	
 	module Tracer {
 		export function console(options?: LoggerOptions): Logger;
-		export function consoleColor(options?: LoggerOptions): Logger;
+		export function colorConsole(options?: LoggerOptions): Logger;
 		
 		export interface LoggerOptions {
 			/**
 			 * Output level, e.g. "warn", "error", etc.
 			 */
-			level: string|number;
+			level?: string|number;
 			
 			/**
 			 * Output format. E.g. {{timestamp}} <{{title}}> {{message}} (in {{file}}:{{line}})
 			 */
-			format: string;
+			format?: string;
 			
 			/**
 			 * Date format. E.g. HH:MM:ss.L
 			 */
-			dateFormat: string;
+			dateFormat?: string;
 			
 			/**
 			 * Function that pre-processes log data before printing.
 			 */
-			preprocess: (data: LogItem) => void;
+			preprocess?: (data: LogItem) => void;
 			
 			/**
 			 * Customize output methods (default: log, trace, debug, info, warn, error)
 			 */
-			methods: string[];
+			methods?: string[];
 			
 			/**
 			 * List of filters (e.g. for use with colors) to apply
 			 */
-			filters: Filters | Filter[];
+			filters?: Filters | Filter[];
 			
 			/**
 			 * Specify a method for log disposition (default is writing to the console)
 			 */
-			transport: (data: LogItem) => void;
+			transport?: (data: LogItem) => void;
 			
 			/**
 			 * Options for printing object types
 			 */
-			inspectOpt: InspectOptions;
+			inspectOpt?: InspectOptions;
 			
 			/**
 			 * Specify the stack index for file info
 			 */
-			stackIndex: number;
+			stackIndex?: number;
 		}
 		
 		/**

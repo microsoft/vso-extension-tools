@@ -1,14 +1,17 @@
 /// <reference path="../../typings/tsd.d.ts" />
 var _ = require("lodash");
 var fs = require("fs");
-var logger = require("tracer");
+var tracer = require("tracer");
 var package = require("./package");
 var program = require("commander");
 var publish = require("./publish");
 var Q = require("q");
 var settings = require("./settings");
 var upgrade = require("./upgrade");
-var log = logger.console();
+var logger = tracer.colorConsole();
+var warner = tracer.colorConsole({ level: "warn" });
+var log = logger.log;
+var warn = warner.log;
 var App;
 (function (App) {
     var defaultSettings = {
@@ -16,22 +19,22 @@ var App;
             root: process.cwd(),
             manifestGlobs: ["**/*-manifest.json"],
             outputPath: "{auto}",
-            publisher: null
+            overrides: null
         }
     };
     function doPackageCreate(settings) {
         var merger = new package.Package.Merger(settings);
-        console.log("Beginning merge of partial manifests.");
+        log("Beginning merge of partial manifests.");
         return merger.merge().then(function (manifests) {
-            console.log("Merge completed.");
+            log("Merge completed.");
             var vsixWriter = new package.Package.VsixWriter(manifests.vsoManifest, manifests.vsixManifest);
-            console.log("Beginning writing VSIX");
+            log("Beginning writing VSIX");
             return vsixWriter.writeVsix(settings.outputPath).then(function (outPath) {
-                console.log("VSIX written to: " + outPath);
+                log("VSIX written to: " + outPath);
                 return outPath;
             });
         }).then(function (outPath) {
-            console.log("Successfully created VSIX package.");
+            warn("Successfully created VSIX package.");
             return outPath;
         });
     }
@@ -43,7 +46,7 @@ var App;
         return settings.resolveSettings(options, defaultSettings).then(function (settings) {
             return Q.Promise(function (resolve, reject, notify) {
                 if (!settings.package) {
-                    console.log("VSIX was manually specified. Skipping generation.");
+                    log("VSIX was manually specified. Skipping generation.");
                     resolve(settings.publish.vsixPath);
                 }
                 else {
@@ -53,7 +56,7 @@ var App;
                 settings.publish.vsixPath = vsixPath;
                 return doPublish(settings.publish);
             }).then(function () {
-                console.log("Successfully published VSIX from " + settings.publish.vsixPath + " to the gallery.");
+                log("Successfully published VSIX from " + settings.publish.vsixPath + " to the gallery.");
             }).catch(function (error) {
                 var errStr = _.isString(error) ? error : JSON.stringify(error, null, 4);
                 console.error("Error: " + errStr);
@@ -82,7 +85,7 @@ var App;
             var pubManager = new publish.Publish.PublisherManager(options.publish);
             return pubManager.createPublisher(name, displayName, description).catch(console.error.bind(console));
         }).then(function () {
-            console.log("Successfully created publisher `" + name + "`.");
+            log("Successfully created publisher `" + name + "`.");
             process.exit(0);
         }).catch(function (err) {
             console.error(err);
@@ -95,7 +98,7 @@ var App;
             var pubManager = new publish.Publish.PublisherManager(options.publish);
             return pubManager.deletePublisher(publisherName).catch(console.error.bind(console));
         }).then(function () {
-            console.log("Successfully deleted publisher `" + publisherName + "`.");
+            log("Successfully deleted publisher `" + publisherName + "`.");
             process.exit(0);
         }).catch(function (err) {
             console.error(err);
@@ -116,7 +119,7 @@ var App;
         }
         var upgrader = new upgrade.ToM85(pathToManifest, publisherName);
         return upgrader.execute(outPath).then(function () {
-            console.log("Successfully upgraded manifest to M85. Result written to " + outPath + ".");
+            log("Successfully upgraded manifest to M85. Result written to " + outPath + ".");
             process.exit(0);
         }).catch(function (err) {
             console.error(err);
@@ -127,7 +130,7 @@ var App;
 })(App || (App = {}));
 var version = process.version;
 if (parseInt(version.split(".")[1], 10) < 12) {
-    console.log("Please upgrade to NodeJS v0.12.x or higher");
+    log("Please upgrade to NodeJS v0.12.x or higher");
     process.exit(-1);
 }
 program
@@ -175,5 +178,5 @@ program
 program.parse(process.argv);
 var commandNames = program["commands"].map(function (c) { return c._name; });
 if (program["rawArgs"].length < 3 || commandNames.indexOf(program["rawArgs"][2]) === -1) {
-    program.outputHelp();
+    program.help();
 }

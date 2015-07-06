@@ -14,7 +14,7 @@ var Package;
             this.mergeSettings = {
                 root: settings.root,
                 manifestGlobs: settings.manifestGlobs,
-                publisher: settings.publisher
+                overrides: settings.overrides
             };
         }
         Merger.prototype.gatherManifests = function (globPatterns) {
@@ -63,6 +63,9 @@ var Package;
                             throw err;
                         }
                     }));
+                    if (_this.mergeSettings.overrides) {
+                        manifestPromises.push(Q.resolve(_this.mergeSettings.overrides));
+                    }
                 });
                 var defaultVsixManifestPath = path.join(require("app-root-path").path, "src", "tmpl", "default_vsixmanifest.json");
                 var vsixManifest = JSON.parse(fs.readFileSync(defaultVsixManifestPath, "utf8"));
@@ -91,9 +94,6 @@ var Package;
                         Object.keys(partial).forEach(function (key) {
                             _this.mergeKey(key, partial[key], vsoManifest, vsixManifest);
                         });
-                        if (_this.mergeSettings.publisher) {
-                            vsixManifest.PackageManifest.Metadata[0].Identity[0].$.Publisher = _this.mergeSettings.publisher;
-                        }
                     });
                     return { vsoManifest: vsoManifest, vsixManifest: vsixManifest };
                 });
@@ -208,10 +208,9 @@ var Package;
                     }
                     break;
                 case "contributiontypes":
-                    if (!vsoManifest.contributionTypes) {
-                        vsoManifest.contributionTypes = {};
+                    if (_.isArray(value)) {
+                        vsoManifest.contributionTypes = vsoManifest.contributionTypes.concat(value);
                     }
-                    _.merge(vsoManifest.contributionTypes, value);
                     break;
                 case "assets":
                     if (_.isArray(value)) {
@@ -232,7 +231,6 @@ var Package;
                     break;
             }
         };
-        Merger.DEFAULT_MERGE_SETTINGS_FILE = "merge-settings.json";
         return Merger;
     })();
     Package.Merger = Merger;

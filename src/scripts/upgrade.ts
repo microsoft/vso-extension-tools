@@ -115,9 +115,7 @@ export class ToM85 {
 				upgraded.contributionTypes = [];
 			}
 			Object.keys(old.contributionTypes).forEach((contributionTypeId: string) => {
-				let contributionType: any = old.contributionTypes[contributionTypeId];
-				contributionType.id = contributionTypeId;
-				upgraded.contributionTypes.push(contributionType);
+				upgraded.contributionTypes.push(ToM85.convertContributionType(contributionTypeId, old.contributionTypes[contributionTypeId]));
 			});
 		},
 		contributionPoints: (old: any, upgraded: any) => {
@@ -236,6 +234,10 @@ export class ToM85 {
 			console.log("Warning: No ID for contribution made to " + pointId + ".");
 		}
 		return newContribution;
+	}
+	
+	private static convertContributionType(typeId: string, contributionType: any): any {
+		return <any>{id: typeId, name: contributionType.title, description: contributionType.description, properties: contributionType.properties}
 	}
 	
 	public execute(outputPath: string): Q.Promise<any> {

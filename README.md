@@ -62,9 +62,9 @@ This command packages a VSIX file with your extension manifest and your assets, 
 * `root`: *current working directory*
 * `manifestGlob`: \*\*/\*-manifest.json
 
-Invoke the app with the command `package`. If ./settings.json exists, that will be used. Otherwise use the `--settings` option to specify the path to your settings file. E.g.:
+Invoke the app with the command `package`. If ./settings.vset.json exists, that will be used. Otherwise use the `--settings` option to specify the path to your settings file. E.g.:
 
-`vset package --settings path/to/settings.json`
+`vset package --settings path/to/settings.vset.json`
 
 #### Command-line arguments
 You can use the following command-line arguments to override the defaults:
@@ -78,7 +78,7 @@ You can use the following command-line arguments to override the defaults:
 #### Examples
 `vset package --root . --output-path C:\temp\myextension.vsix --manifest-glob **/*.json` - use command line options to package a VSIX
 
-`vset package` - use ./settings.json (see below) or defaults (if settings.json does not exist) to package a VSIX
+`vset package` - use ./settings.vset.json (see below) or defaults (if settings.vset.json does not exist) to package a VSIX
 
 ### Publish
 This command publishes a VSIX file to the Gallery. The VSIX can either be generated (default) or specified manually. You must specify two options for publishing:
@@ -89,7 +89,7 @@ This command publishes a VSIX file to the Gallery. The VSIX can either be genera
 -v, --vsix <string>        - If specified, publishes the VSIX at this path instead of auto-packaging
 ```
 
-To get a personal access token, navigate to `https://<your_account_url>/_details/security/tokens` and **Add** a new token for **All accessible accounts** and **All scopes**. Copy and paste the generated token into the settings.json file.
+To get a personal access token, navigate to `https://<your_account_url>/_details/security/tokens` and **Add** a new token for **All accessible accounts** and **All scopes**. Copy and paste the generated token into the settings.vset.json file.
 
 If you do not specify the `--vsix` argument, the tool will first package the VSIX. In this case, you may additionally specify the arguments from the package section or rely on the defaults.
 
@@ -102,10 +102,10 @@ If you don't want to keep the generated VSIX around after it is published, you c
 
 `vset publish --vsix C:\temp\existingextension.vsix --gallery-url https://gallery.visualstudio.com --token xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`
 
-`vset publish` - use ./settings.json (see below) to publish a VSIX (which may be packaged also, depending on the presence of the publish.vsixPath property
+`vset publish` - use ./settings.vset.json (see below) to publish a VSIX (which may be packaged also, depending on the presence of the publish.vsixPath property
 
 ### Create and Delete Publisher
-These commands are used to create or delete a publisher. When creating a publisher, you must specify the same galleryUrl and token that are required for publishing (either using a settings.json file or command line options).
+These commands are used to create or delete a publisher. When creating a publisher, you must specify the same galleryUrl and token that are required for publishing (either using a settings.vset.json file or command line options).
 
 `create-publisher [options] <unique_name> <display_name> <description>`
 
@@ -114,7 +114,7 @@ These commands are used to create or delete a publisher. When creating a publish
 #### Examples
 `vset create-publisher "fabrikamCorp" "Fabrikam, inc." "This is Fabrikam, inc.'s main publisher." --gallery-url https://gallery.visualstudio.com --token xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`
 
-`vset delete-publisher "fabrikamCorp"` - Use a settings.json file (see below)
+`vset delete-publisher "fabrikamCorp"` - Use a settings.vset.json file (see below)
 
 ### Migrate
 Use this command to migrate a manifest to the new model introduced in M85. For any items that may require your attention, you will see a warning.
@@ -135,7 +135,7 @@ If there already exists a file at `output_path` (or if it is omitted), you must 
 #### Settings file
 See the settings_example.json file for an example.
 
-You may create a settings file (JSON format) to specify options instead of passing them as inputs each time. By default, the tool will look for ./settings.json if no settings file is specified. Otherwise, you may specify the path using the `--settings <path_to_settings>` option.
+You may create a settings file (JSON format) to specify options instead of passing them as inputs each time. By default, the tool will look for ./settings.vset.json if no settings file is specified. Otherwise, you may specify the path using the `--settings <path_to_settings>` option.
 
 Your settings file is a JSON file with two root properties: `package` and `publish`. Each of those points to a nested object with their respective settings, modeled by the following schema:
 ```typescript

@@ -44,9 +44,9 @@ export module Package {
 		manifestGlobs: string[];
 		
 		/**
-		 * If set, overrides the manifest-specified publisher
+		 * Highest priority partial manifest
 		 */
-		publisher: string;
+		overrides: any;
 	}
 	
 	/**
@@ -54,8 +54,6 @@ export module Package {
 	 * manifests (one vsoManifest and one vsixManifest)
 	 */
 	export class Merger {
-		private static DEFAULT_MERGE_SETTINGS_FILE: string = "merge-settings.json";
-		
 		private mergeSettings: MergeSettings;
 		
 		/**
@@ -66,7 +64,7 @@ export module Package {
 			this.mergeSettings = {
 				root: settings.root,
 				manifestGlobs: settings.manifestGlobs,
-				publisher: settings.publisher
+				overrides: settings.overrides
 			}
 		}
 		
@@ -116,6 +114,11 @@ export module Package {
 							throw err;
 						}
 					}));
+					
+					// Add the overrides if necessary
+					if (this.mergeSettings.overrides) {
+						manifestPromises.push(Q.resolve(this.mergeSettings.overrides));
+					}
 				});
 				let defaultVsixManifestPath = path.join(require("app-root-path").path, "src", "tmpl", "default_vsixmanifest.json"); 
 				let vsixManifest: any = JSON.parse(fs.readFileSync(defaultVsixManifestPath, "utf8"));
@@ -147,18 +150,13 @@ export module Package {
 						Object.keys(partial).forEach((key) => {
 							this.mergeKey(key, partial[key], vsoManifest, vsixManifest);
 						});
-						
-						// Override the publisher, if set
-						if (this.mergeSettings.publisher) {
-							vsixManifest.PackageManifest.Metadata[0].Identity[0].$.Publisher = this.mergeSettings.publisher;
-						}
 					});
 					return <SplitManifest>{vsoManifest: vsoManifest, vsixManifest: vsixManifest};
 				});
 			});
 		}
 		
-		private handleDelimitedList(value: any, object: any, path: string, delimiter: string = ",") {
+		private handleDelimitedList(value: any, object: any, path: string, delimiter: string = ","): void {
 			if (_.isString(value)) {
 				value = value.split(delimiter);
 				_.remove(value, v => v === "");
@@ -168,7 +166,7 @@ export module Package {
 			_.set(object, path, _.uniq(items.concat(value)).join(delimiter));
 		}
 		
-		private mergeKey(key: string, value: any, vsoManifest: any, vsixManifest: any) {
+		private mergeKey(key: string, value: any, vsoManifest: any, vsixManifest: any): void {
 			switch(key.toLowerCase()) {
 				case "namespace":
 				case "extensionid":
@@ -274,10 +272,9 @@ export module Package {
 					}
 					break;
 				case "contributiontypes":
-					if (!vsoManifest.contributionTypes) {
-						vsoManifest.contributionTypes = {};
+					if (_.isArray(value)) {
+						vsoManifest.contributionTypes = vsoManifest.contributionTypes.concat(value);
 					}
-					_.merge(vsoManifest.contributionTypes, value);
 					break;
 				case "assets": // fix me
 					if (_.isArray(value)) {

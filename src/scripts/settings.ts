@@ -20,7 +20,7 @@ export interface PackageSettings {
 	root: string;
 	manifestGlobs: string[];
 	outputPath: string;
-	publisher: string;
+	overrides: any;
 }
 export interface CommandLineOptions {
 	root?: string;
@@ -29,12 +29,13 @@ export interface CommandLineOptions {
 	vsix?: string;
 	settings?: string;
 	forceOverwrite?: boolean;
+	overrides?: any;
 }
 
 
 export function resolveSettings(options: CommandLineOptions, defaults?: AppSettings): Q.Promise<AppSettings> {
 	let passedOptions = <AppSettings>{};
-	let settingsPath: string = path.resolve("settings.json");
+	let settingsPath: string = path.resolve("settings.vset.json");
 	let defaultSettings = defaults || {};
 	if (options.manifestGlob) {
 		_.set(passedOptions, "package.manifestGlobs", [options.manifestGlob]);
@@ -50,6 +51,24 @@ export function resolveSettings(options: CommandLineOptions, defaults?: AppSetti
 	}
 	if (options.vsix) {
 		_.set(passedOptions, "publish.vsixPath", options.vsix);
+	}
+	
+	// Parse any overrides passed in as a command line option.
+	// Using this pattern to prevent commander from auto-documenting this feature.
+	let parsedOverrides: any, args = process.argv.slice(2);
+	for (let i = 0; i < args.length; ++i) {
+		let arg = args[i];
+		if (arg === "--override") {
+			if (args[i+1]) {
+				try {
+					parsedOverrides = JSON.parse(args[i+1]); // Can't use let here without ES6
+					_.set(passedOptions, "package.overrides", parsedOverrides);
+				} catch(e) {
+					
+				}
+			}
+			break;
+		}
 	}
 	return Q.Promise<AppSettings>((resolve, reject, notify) => {
 		if (settingsPath) {

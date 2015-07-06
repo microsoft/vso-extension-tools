@@ -23,9 +23,7 @@ var ToM85 = (function () {
                     upgraded.contributionTypes = [];
                 }
                 Object.keys(old.contributionTypes).forEach(function (contributionTypeId) {
-                    var contributionType = old.contributionTypes[contributionTypeId];
-                    contributionType.id = contributionTypeId;
-                    upgraded.contributionTypes.push(contributionType);
+                    upgraded.contributionTypes.push(ToM85.convertContributionType(contributionTypeId, old.contributionTypes[contributionTypeId]));
                 });
             },
             contributionPoints: function (old, upgraded) {
@@ -140,6 +138,9 @@ var ToM85 = (function () {
             console.log("Warning: No ID for contribution made to " + pointId + ".");
         }
         return newContribution;
+    };
+    ToM85.convertContributionType = function (typeId, contributionType) {
+        return { id: typeId, name: contributionType.title, description: contributionType.description, properties: contributionType.properties };
     };
     ToM85.prototype.execute = function (outputPath) {
         var _this = this;
