@@ -40,13 +40,18 @@ function resolveSettings(options, defaults) {
         }
     }
     return Q.Promise(function (resolve, reject, notify) {
-        if (settingsPath) {
-            resolve(parseSettingsFile(settingsPath).then(function (settings) {
-                return _.merge({}, defaultSettings, settings, passedOptions);
-            }));
+        try {
+            if (settingsPath) {
+                resolve(parseSettingsFile(settingsPath).then(function (settings) {
+                    return _.merge({}, defaultSettings, settings, passedOptions);
+                }));
+            }
+            else {
+                resolve(_.merge({}, defaultSettings, passedOptions));
+            }
         }
-        else {
-            resolve(_.merge({}, defaultSettings, passedOptions));
+        catch (err) {
+            reject(err);
         }
     }).then(function (settings) {
         if (_.get(settings, "package.manifestGlobs")) {
@@ -62,12 +67,17 @@ function resolveSettings(options, defaults) {
         if (settings.package) {
             if (_.get(settings, "package.outputPath", "") === "{tmp}") {
                 outPathPromise = Q.Promise(function (resolve, reject, notify) {
-                    tmp.dir({ unsafeCleanup: true }, function (err, tmpPath, cleanupCallback) {
-                        if (err) {
-                            reject(err);
-                        }
-                        resolve(path.join(tmpPath, "extension.vsix"));
-                    });
+                    try {
+                        tmp.dir({ unsafeCleanup: true }, function (err, tmpPath, cleanupCallback) {
+                            if (err) {
+                                reject(err);
+                            }
+                            resolve(path.join(tmpPath, "extension.vsix"));
+                        });
+                    }
+                    catch (err) {
+                        reject(err);
+                    }
                 });
             }
             else {
@@ -94,11 +104,16 @@ function resolveSettings(options, defaults) {
 exports.resolveSettings = resolveSettings;
 function parseSettingsFile(settingsPath) {
     return Q.Promise(function (resolve, reject, notify) {
-        if (fs.existsSync(settingsPath)) {
-            resolve(JSON.parse(fs.readFileSync(settingsPath, "utf8").replace(/^\uFEFF/, "")));
+        try {
+            if (fs.existsSync(settingsPath)) {
+                resolve(JSON.parse(fs.readFileSync(settingsPath, "utf8").replace(/^\uFEFF/, "")));
+            }
+            else {
+                resolve({});
+            }
         }
-        else {
-            resolve({});
+        catch (err) {
+            reject(err);
         }
     });
 }

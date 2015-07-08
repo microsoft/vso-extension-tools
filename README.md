@@ -85,7 +85,6 @@ This command publishes a VSIX file to the Gallery. The VSIX can either be genera
 
 ```txt
 -t, --token <string>       - Specify your personal access token.
--g, --gallery-url <string> - Specify the URL to the Visual Studio Online Gallery.
 -v, --vsix <string>        - If specified, publishes the VSIX at this path instead of auto-packaging
 ```
 
@@ -98,21 +97,21 @@ If you don't want to keep the generated VSIX around after it is published, you c
 
 #### Examples
 
-`vset publish --root . --output-path C:\temp\myextension.vsix --manifest-glob **/*.json --gallery-url https://gallery.visualstudio.com --token xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`
+`vset publish --root . --output-path C:\temp\myextension.vsix --manifest-glob **/*.json --token xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`
 
-`vset publish --vsix C:\temp\existingextension.vsix --gallery-url https://gallery.visualstudio.com --token xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`
+`vset publish --vsix C:\temp\existingextension.vsix --token xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`
 
 `vset publish` - use ./settings.vset.json (see below) to publish a VSIX (which may be packaged also, depending on the presence of the publish.vsixPath property
 
 ### Create and Delete Publisher
-These commands are used to create or delete a publisher. When creating a publisher, you must specify the same galleryUrl and token that are required for publishing (either using a settings.vset.json file or command line options).
+These commands are used to create or delete a publisher. When creating a publisher, you must specify the same token that is required for publishing (either using a settings.vset.json file or command line options).
 
 `create-publisher [options] <unique_name> <display_name> <description>`
 
 `delete-publisher [options] <unique_name>`
 
 #### Examples
-`vset create-publisher "fabrikamCorp" "Fabrikam, inc." "This is Fabrikam, inc.'s main publisher." --gallery-url https://gallery.visualstudio.com --token xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`
+`vset create-publisher "fabrikamCorp" "Fabrikam, inc." "This is Fabrikam, inc.'s main publisher." --token xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`
 
 `vset delete-publisher "fabrikamCorp"` - Use a settings.vset.json file (see below)
 
@@ -168,12 +167,7 @@ Your settings file is a JSON file with two root properties: `package` and `publi
     /**
      * Settings for publishing and publisher management
      */
-    "publish" {
-        /**
-         * URL to the Visual Studio Online Gallery
-         */
-        "galleryUrl": string;
-        
+    "publish" {        
         /**
          * Personal Access Token (52-character alphanumeric string)
          * for publishing extensions (all accounts, all scopes)

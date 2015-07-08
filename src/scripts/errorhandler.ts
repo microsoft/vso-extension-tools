@@ -1,5 +1,6 @@
+import log = require("./logger");
 
-export function err(obj): any {
+export function httpErr(obj): any {
 	let errorAsObj = obj;
 	if (typeof errorAsObj === "string") {
 		try {
@@ -28,4 +29,21 @@ export function err(obj): any {
 	} else {
 		throw errorBodyObj;
 	}
+}
+
+export function errLog(arg) {
+	if (typeof arg === "string") {
+		log.error(arg);
+	} else if (typeof arg.toString === "function") {
+		log.error(arg.toString());
+	} else if (typeof arg === "object") {
+		try {
+			log.error(JSON.parse(arg))
+		} catch (e) {
+			log.error(arg);
+		}
+	} else {
+		log.error(arg);
+	}
+	process.exit(-1);
 }

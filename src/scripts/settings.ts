@@ -71,25 +71,29 @@ export function resolveSettings(options: CommandLineOptions, defaults?: AppSetti
 		}
 	}
 	return Q.Promise<AppSettings>((resolve, reject, notify) => {
-		if (settingsPath) {
-			resolve(parseSettingsFile(settingsPath).then<AppSettings>((settings: AppSettings) => {
-				return _.merge<
+		try {
+			if (settingsPath) {
+				resolve(parseSettingsFile(settingsPath).then<AppSettings>((settings: AppSettings) => {
+					return _.merge<
+						any, 
+						AppSettings,
+						AppSettings, 
+						AppSettings, 
+						AppSettings, 
+						any, 
+						any>(<AppSettings>{}, defaultSettings, settings, passedOptions);
+				}));
+			} else {
+				resolve(_.merge<
 					any, 
-					AppSettings,
 					AppSettings, 
 					AppSettings, 
 					AppSettings, 
 					any, 
-					any>(<AppSettings>{}, defaultSettings, settings, passedOptions);
-			}));
-		} else {
-			resolve(_.merge<
-				any, 
-				AppSettings, 
-				AppSettings, 
-				AppSettings, 
-				any, 
-				any>(<AppSettings>{}, defaultSettings, passedOptions));
+					any>(<AppSettings>{}, defaultSettings, passedOptions));
+			}
+		} catch (err) {
+			reject(err);
 		}
 	}).then((settings) => {
 		if (_.get(settings, "package.manifestGlobs")) {
@@ -106,12 +110,16 @@ export function resolveSettings(options: CommandLineOptions, defaults?: AppSetti
 		if (settings.package) {
 			if (_.get<string>(settings, "package.outputPath", "") === "{tmp}") {
 				outPathPromise = Q.Promise<string>((resolve, reject, notify) => {
-					tmp.dir({unsafeCleanup: true}, (err, tmpPath, cleanupCallback) => {
-						if (err) {
-							reject(err);
-						}
-						resolve(path.join(tmpPath, "extension.vsix"));
-					});
+					try {
+						tmp.dir({unsafeCleanup: true}, (err, tmpPath, cleanupCallback) => {
+							if (err) {
+								reject(err);
+							}
+							resolve(path.join(tmpPath, "extension.vsix"));
+						});
+					} catch (err) {
+						reject(err);
+					}
 				})
 			} else {
 				outPathPromise = Q.resolve<string>(settings.package["outputPath"]);
@@ -135,10 +143,14 @@ export function resolveSettings(options: CommandLineOptions, defaults?: AppSetti
 
 function parseSettingsFile(settingsPath: string): Q.Promise<AppSettings> {
 	return Q.Promise<AppSettings>((resolve, reject, notify) => {
-		if (fs.existsSync(settingsPath)) {
-			resolve(JSON.parse(fs.readFileSync(settingsPath, "utf8").replace(/^\uFEFF/, "")));
-		} else {
-			resolve({});
+		try {
+			if (fs.existsSync(settingsPath)) {
+				resolve(JSON.parse(fs.readFileSync(settingsPath, "utf8").replace(/^\uFEFF/, "")));
+			} else {
+				resolve({});
+			}
+		} catch (err) {
+			reject(err);
 		}
 	});
 }

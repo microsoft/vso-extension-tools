@@ -1,10 +1,12 @@
 /// <reference path="../../typings/tsd.d.ts" />
 
 import _ = require("lodash");
+import chalk = require("chalk");
 import errHandler = require("./errorhandler");
 import fs= require("fs");
 import GalleryClient = require("../lib/VSS/Gallery/RestClient");
 import GalleryContracts = require("../lib/VSS/Gallery/Contracts");
+import log = require("./logger");
 import RestClient = require("../lib/VSS/WebApi/RestClient");
 import Q = require("q");
 import settings = require("./settings");
@@ -28,8 +30,6 @@ export module Publish {
 				throw "Invalid or missing gallery URL.";
 			}
 			if (!token || !/^[A-z0-9]{52}$/.test(token)) {
-				console.log(token);
-				console.log(token.length);
 				throw "Invalid or missing personal access token.";
 			}
 			this.galleryUrl = baseUrl;
@@ -65,7 +65,7 @@ export module Publish {
 				displayName: displayName,
 				longDescription: description,
 				shortDescription: description
-			}).catch(errHandler.err);
+			}).catch(errHandler.httpErr);
 		}
 		
 		/**
@@ -74,7 +74,7 @@ export module Publish {
 		 * @return Q.promise that is resolved when publisher is deleted
 		 */
 		public deletePublisher(name: string): Q.Promise<any> {
-			return this.galleryClient.deletePublisher(name).catch(errHandler.err);
+			return this.galleryClient.deletePublisher(name).catch(errHandler.httpErr);
 		}
 	}
 	
@@ -93,11 +93,15 @@ export module Publish {
 			return Q.Promise<JSZip>((resolve, reject, notify) => {
 				fs.readFile(vsixPath, function(err, data) {
 					if (err) reject(err);
-					console.log("Read vsix as zip... Size (bytes): " + data.length);
-					resolve (new zip(data));
+					log.debug("Read vsix as zip... Size (bytes): %s", data.length.toString());
+					try {
+						resolve(new zip(data));
+					} catch (err) {
+						reject(err);
+					}
 				});
 			}).then((zip) => {
-				console.log("Files in the zip: " + Object.keys(zip.files).join(", "));
+				log.debug("Files in the zip: %s", Object.keys(zip.files).join(", "));
 				let vsixManifestFileNames = Object.keys(zip.files).filter(key => _.endsWith(key, "vsixmanifest"));
 				if (vsixManifestFileNames.length > 0) {
 					return Q.nfcall(xml2js.parseString, zip.files[vsixManifestFileNames[0]].asText());
@@ -136,21 +140,21 @@ export module Publish {
 			let extPackage: GalleryContracts.ExtensionPackage = {
 				extensionManifest: fs.readFileSync(vsixPath, "base64")
 			};
-			console.log("Begin publish for vsix at " + vsixPath);
+			log.debug("Publishing %s", vsixPath);
 			
 			// Check if the app is already published. If so, call the update endpoint. Otherwise, create.
-			console.log("Checking if this extension is already published...");
+			log.info("Checking if this extension is already published", 2);
 			return this.checkVsixPublished(vsixPath).then((publishedExtInfo) => {
 				if (publishedExtInfo) {
-					console.log("It is, update the extension");
+					log.info("It is, %s the extension", 3, chalk.cyan("update").toString());
 					return this.galleryClient.updateExtension(extPackage, publishedExtInfo.publisher, publishedExtInfo.id).then(() => {
 						
-					}).catch(errHandler.err);
+					}).catch(errHandler.httpErr);
 				} else {
-					console.log("It isn't, create a new extension.");
+					log.info("It isn't, %s a new extension.", 3, chalk.cyan("create").toString());
 					return this.galleryClient.createExtension(extPackage).then(() => {
 						
-					}).catch<any>(errHandler.err);
+					}).catch<any>(errHandler.httpErr);
 				}
 			});
 		}

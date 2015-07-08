@@ -4,6 +4,7 @@ import _ = require("lodash");
 import chalk = require("chalk");
 import fs = require("fs");
 import glob = require("glob");
+import log = require("./logger");
 import path = require("path");
 import Q = require("q");
 import settings = require("./settings");
@@ -109,8 +110,8 @@ export module Package {
 							result.__origin = file; // save the origin in order to resolve relative paths later.
 							return result;	
 						} catch (err) {
-							console.log("Error parsing the JSON in " + file + ": ");
-							console.log(jsonData);
+							log.error("Error parsing the JSON in %s: ", file);
+							log.info(jsonData, null);
 							throw err;
 						}
 					}));
@@ -120,7 +121,7 @@ export module Package {
 						manifestPromises.push(Q.resolve(this.mergeSettings.overrides));
 					}
 				});
-				let defaultVsixManifestPath = path.join(require("app-root-path").path, "src", "tmpl", "default_vsixmanifest.json"); 
+				let defaultVsixManifestPath = path.join(__dirname, "..", "tmpl", "default_vsixmanifest.json"); 
 				let vsixManifest: any = JSON.parse(fs.readFileSync(defaultVsixManifestPath, "utf8"));
 				vsixManifest.__meta_root = this.mergeSettings.root;
 				let vsoManifest: any = {
@@ -131,7 +132,7 @@ export module Package {
 				};
 				return Q.all(manifestPromises).then((partials: any[]) => {
 					partials.forEach((partial) => {
-						// Transform asset paths to be relative to the root of all manifests.
+						// Transform asset paths to be relative to the root of all manifests, verify assets
 						if (_.isArray(partial["assets"])) {
 							(<Array<AssetDeclaration>>partial["assets"]).forEach((asset) => {
 								let keys = Object.keys(asset);
@@ -143,6 +144,14 @@ export module Package {
 								}
 								let absolutePath = path.join(path.dirname(partial.__origin), asset.path);
 								asset.path = path.relative(this.mergeSettings.root, absolutePath);
+							});
+						}
+						// Transform icon paths as above
+						if (_.isObject(partial["icons"])) {
+							let icons = partial["icons"];
+							Object.keys(icons).forEach((iconKind: string) => {
+								let absolutePath = path.join(path.dirname(partial.__origin), icons[iconKind]);
+								icons[iconKind] = path.relative(this.mergeSettings.root, absolutePath);
 							});
 						}
 						
@@ -328,6 +337,7 @@ export module Package {
 			gif: "image/gif",
 			jpg: "image/jpg",
 			jpeg: "image/jpg",
+			png: "image/png",
 			tiff: "image/tiff",
 			vsix: "application/zip",
 			zip: "application/zip",
@@ -363,7 +373,7 @@ export module Package {
 				Path: VsixWriter.VSO_MANIFEST_FILENAME
 			}});
 			
-			console.log("Manifests finished prepping.");
+			log.debug("Manifests finished prepping.");
 		}
 		
 		/**
@@ -461,7 +471,7 @@ export module Package {
 					compressionOptions: { level: 9 },
 					platform: process.platform
 				});
-				console.log("Writing vsix to: " + outputPath);
+				log.debug("Writing vsix to: %s", outputPath);
 				this.ensureDirExists(outputPath);
 				return Q.nfcall(fs.writeFile, outputPath, buffer).then(() => {
 					return outputPath;

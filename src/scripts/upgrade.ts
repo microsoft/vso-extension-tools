@@ -2,6 +2,7 @@
 
 import _ = require("lodash");
 import fs = require("fs");
+import log = require("./logger");
 import path = require("path");
 import Q = require("q");
 
@@ -106,7 +107,7 @@ export class ToM85 {
 			Object.keys(old.contributions).forEach((contributionPoint: string) => {
 				let contributions: any[] = old.contributions[contributionPoint];
 				contributions.forEach((contribution) => {
-					upgraded.contributions.push(ToM85.convertContribution(contributionPoint, contribution));
+					upgraded.contributions.push(ToM85.convertContribution(contributionPoint, contribution, old));
 				});
 			});
 		},
@@ -142,7 +143,7 @@ export class ToM85 {
 			}
 			let fullIconPath = path.resolve(path.dirname(this.srcPath), iconPath);
 			if (!fs.existsSync(fullIconPath)) {
-				console.log("Warning: Could not find asset " + old.icon + " locally (we tried " + fullIconPath + "). Ensure that the path to this asset is correct relative to the location of this manifest before packaging.");
+				log.warn("Warning: Could not find asset %s locally (we tried %s). Ensure that the path to this asset is correct relative to the location of this manifest before packaging.", old.icon, fullIconPath);
 			}
 			upgraded.assets.push({
 				type: "Microsoft.VSO.LargeIcon",
@@ -175,17 +176,26 @@ export class ToM85 {
 				return ToM85.contributionIdMap[pointId];
 			}
 		}
-		console.log("Warning: Cannot find appropriate M85 target contribution for contribution point " + pointId + ".");
+		log.warn("Warning: Cannot find appropriate M85 target contribution for contribution point %s.", pointId);
 		if (contribution.group || contribution.groupId) {
-			console.log("-- groupId: " + (contribution.group || contribution.groupId));
+			log.warn("-- groupId: %s", (contribution.group || contribution.groupId));
 		}
 		return pointId;
 	}
 	
-	private static pointIdToType(pointId: string, contribution: any): string {
+	private static convertTypeIdentifier(oldTypeId: string): string {
+		let split = oldTypeId.split("#");
+		if (_.startsWith(split[0], "vss.")) {
+			return ["ms", split[0].replace(".", "-"), split[1]].join(".");
+		}
+		log.warn("Warning: Cannot determine the correct contribution type id for: %s.", oldTypeId);
+	}
+	
+	private static pointIdToType(pointId: string, contribution: any, oldManifest: any): string {
 		let type;
 		if (pointId.charAt(0) === "#") {
-			type = "." + pointId.substr(1).replace(/\./g, "-");
+			// Look up contribution point in this manifest
+			type = ToM85.convertTypeIdentifier(_.get<string>(oldManifest, "contributionPoints." + pointId.substr(1) + ".type"));
 		}
 		if (ToM85.contributionTypeMap[pointId]) {
 			type = ToM85.contributionTypeMap[pointId];
@@ -202,13 +212,13 @@ export class ToM85 {
 		}
 		
 		if (!type) {
-			console.log("Warning: Cannot find appropriate M85 contribution type for contribution point " + pointId + ".");
+			log.warn("Warning: Cannot find appropriate M85 contribution type for contribution point %s.", pointId);
 		}
 		return type;
 	}
 	
-	private static convertContribution(pointId: string, contribution: any): any {
-		let newContribution = <any>{id: null, targets: [ToM85.pointIdToTarget(pointId, contribution)], type: ToM85.pointIdToType(pointId, contribution), properties: {}};
+	private static convertContribution(pointId: string, contribution: any, oldManifest: any): any {
+		let newContribution = <any>{id: null, targets: [ToM85.pointIdToTarget(pointId, contribution)], type: ToM85.pointIdToType(pointId, contribution, oldManifest), properties: {}};
 		Object.keys(contribution).forEach((oldContributionProperty: string) => {
 			switch (oldContributionProperty) {
 				case "id":
@@ -231,7 +241,7 @@ export class ToM85 {
 			}
 		}
 		if (!newContribution.id) {
-			console.log("Warning: No ID for contribution made to " + pointId + ".");
+			log.warn("No ID for contribution made to %s.", pointId);
 		}
 		return newContribution;
 	}
@@ -272,7 +282,7 @@ export class ToM85 {
 			}
 			return upgraded;
 		}).then((upgraded) => {
-			console.log("Writing to " + outputPath + "...");
+			log.debug("Writing to %s.", outputPath);
 			var eol = require("os").EOL;
 			return Q.nfcall(fs.writeFile, outputPath, JSON.stringify(upgraded, null, 4).replace(/\n/g, eol));
 		});

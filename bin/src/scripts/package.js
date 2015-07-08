@@ -2,6 +2,7 @@
 var _ = require("lodash");
 var fs = require("fs");
 var glob = require("glob");
+var log = require("./logger");
 var path = require("path");
 var Q = require("q");
 var tmp = require("tmp");
@@ -58,8 +59,8 @@ var Package;
                             return result;
                         }
                         catch (err) {
-                            console.log("Error parsing the JSON in " + file + ": ");
-                            console.log(jsonData);
+                            log.error("Error parsing the JSON in %s: ", file);
+                            log.info(jsonData, null);
                             throw err;
                         }
                     }));
@@ -67,7 +68,7 @@ var Package;
                         manifestPromises.push(Q.resolve(_this.mergeSettings.overrides));
                     }
                 });
-                var defaultVsixManifestPath = path.join(require("app-root-path").path, "src", "tmpl", "default_vsixmanifest.json");
+                var defaultVsixManifestPath = path.join(__dirname, "..", "tmpl", "default_vsixmanifest.json");
                 var vsixManifest = JSON.parse(fs.readFileSync(defaultVsixManifestPath, "utf8"));
                 vsixManifest.__meta_root = _this.mergeSettings.root;
                 var vsoManifest = {
@@ -89,6 +90,13 @@ var Package;
                                 }
                                 var absolutePath = path.join(path.dirname(partial.__origin), asset.path);
                                 asset.path = path.relative(_this.mergeSettings.root, absolutePath);
+                            });
+                        }
+                        if (_.isObject(partial["icons"])) {
+                            var icons = partial["icons"];
+                            Object.keys(icons).forEach(function (iconKind) {
+                                var absolutePath = path.join(path.dirname(partial.__origin), icons[iconKind]);
+                                icons[iconKind] = path.relative(_this.mergeSettings.root, absolutePath);
                             });
                         }
                         Object.keys(partial).forEach(function (key) {
@@ -259,7 +267,7 @@ var Package;
                     Type: "Microsoft.VisualStudio.Services.Manifest",
                     Path: VsixWriter.VSO_MANIFEST_FILENAME
                 } });
-            console.log("Manifests finished prepping.");
+            log.debug("Manifests finished prepping.");
         };
         VsixWriter.prototype.mkdirp = function (dirPath) {
             var exploded = dirPath.split(/[\/\\]/);
@@ -340,7 +348,7 @@ var Package;
                     compressionOptions: { level: 9 },
                     platform: process.platform
                 });
-                console.log("Writing vsix to: " + outputPath);
+                log.debug("Writing vsix to: %s", outputPath);
                 _this.ensureDirExists(outputPath);
                 return Q.nfcall(fs.writeFile, outputPath, buffer).then(function () {
                     return outputPath;
@@ -398,6 +406,7 @@ var Package;
             gif: "image/gif",
             jpg: "image/jpg",
             jpeg: "image/jpg",
+            png: "image/png",
             tiff: "image/tiff",
             vsix: "application/zip",
             zip: "application/zip",

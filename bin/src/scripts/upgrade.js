@@ -1,6 +1,7 @@
 /// <reference path="../../typings/tsd.d.ts" />
 var _ = require("lodash");
 var fs = require("fs");
+var log = require("./logger");
 var path = require("path");
 var Q = require("q");
 var ToM85 = (function () {
@@ -14,7 +15,7 @@ var ToM85 = (function () {
                 Object.keys(old.contributions).forEach(function (contributionPoint) {
                     var contributions = old.contributions[contributionPoint];
                     contributions.forEach(function (contribution) {
-                        upgraded.contributions.push(ToM85.convertContribution(contributionPoint, contribution));
+                        upgraded.contributions.push(ToM85.convertContribution(contributionPoint, contribution, old));
                     });
                 });
             },
@@ -48,7 +49,7 @@ var ToM85 = (function () {
                 }
                 var fullIconPath = path.resolve(path.dirname(_this.srcPath), iconPath);
                 if (!fs.existsSync(fullIconPath)) {
-                    console.log("Warning: Could not find asset " + old.icon + " locally (we tried " + fullIconPath + "). Ensure that the path to this asset is correct relative to the location of this manifest before packaging.");
+                    log.warn("Warning: Could not find asset %s locally (we tried %s). Ensure that the path to this asset is correct relative to the location of this manifest before packaging.", old.icon, fullIconPath);
                 }
                 upgraded.assets.push({
                     type: "Microsoft.VSO.LargeIcon",
@@ -83,16 +84,23 @@ var ToM85 = (function () {
                 return ToM85.contributionIdMap[pointId];
             }
         }
-        console.log("Warning: Cannot find appropriate M85 target contribution for contribution point " + pointId + ".");
+        log.warn("Warning: Cannot find appropriate M85 target contribution for contribution point %s.", pointId);
         if (contribution.group || contribution.groupId) {
-            console.log("-- groupId: " + (contribution.group || contribution.groupId));
+            log.warn("-- groupId: %s", (contribution.group || contribution.groupId));
         }
         return pointId;
     };
-    ToM85.pointIdToType = function (pointId, contribution) {
+    ToM85.convertTypeIdentifier = function (oldTypeId) {
+        var split = oldTypeId.split("#");
+        if (_.startsWith(split[0], "vss.")) {
+            return ["ms", split[0].replace(".", "-"), split[1]].join(".");
+        }
+        log.warn("Warning: Cannot determine the correct contribution type id for: %s.", oldTypeId);
+    };
+    ToM85.pointIdToType = function (pointId, contribution, oldManifest) {
         var type;
         if (pointId.charAt(0) === "#") {
-            type = "." + pointId.substr(1).replace(/\./g, "-");
+            type = ToM85.convertTypeIdentifier(_.get(oldManifest, "contributionPoints." + pointId.substr(1) + ".type"));
         }
         if (ToM85.contributionTypeMap[pointId]) {
             type = ToM85.contributionTypeMap[pointId];
@@ -109,12 +117,12 @@ var ToM85 = (function () {
             }
         }
         if (!type) {
-            console.log("Warning: Cannot find appropriate M85 contribution type for contribution point " + pointId + ".");
+            log.warn("Warning: Cannot find appropriate M85 contribution type for contribution point %s.", pointId);
         }
         return type;
     };
-    ToM85.convertContribution = function (pointId, contribution) {
-        var newContribution = { id: null, targets: [ToM85.pointIdToTarget(pointId, contribution)], type: ToM85.pointIdToType(pointId, contribution), properties: {} };
+    ToM85.convertContribution = function (pointId, contribution, oldManifest) {
+        var newContribution = { id: null, targets: [ToM85.pointIdToTarget(pointId, contribution)], type: ToM85.pointIdToType(pointId, contribution, oldManifest), properties: {} };
         Object.keys(contribution).forEach(function (oldContributionProperty) {
             switch (oldContributionProperty) {
                 case "id":
@@ -135,7 +143,7 @@ var ToM85 = (function () {
             }
         }
         if (!newContribution.id) {
-            console.log("Warning: No ID for contribution made to " + pointId + ".");
+            log.warn("No ID for contribution made to %s.", pointId);
         }
         return newContribution;
     };
@@ -172,7 +180,7 @@ var ToM85 = (function () {
             }
             return upgraded;
         }).then(function (upgraded) {
-            console.log("Writing to " + outputPath + "...");
+            log.debug("Writing to %s.", outputPath);
             var eol = require("os").EOL;
             return Q.nfcall(fs.writeFile, outputPath, JSON.stringify(upgraded, null, 4).replace(/\n/g, eol));
         });

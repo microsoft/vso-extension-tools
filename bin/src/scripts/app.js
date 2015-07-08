@@ -1,17 +1,13 @@
 /// <reference path="../../typings/tsd.d.ts" />
-var _ = require("lodash");
+var errHandler = require("./errorHandler");
 var fs = require("fs");
-var tracer = require("tracer");
+var log = require("./logger");
 var package = require("./package");
 var program = require("commander");
 var publish = require("./publish");
 var Q = require("q");
 var settings = require("./settings");
 var upgrade = require("./upgrade");
-var logger = tracer.colorConsole();
-var warner = tracer.colorConsole({ level: "warn" });
-var log = logger.log;
-var warn = warner.log;
 var App;
 (function (App) {
     var defaultSettings = {
@@ -20,90 +16,83 @@ var App;
             manifestGlobs: ["**/*-manifest.json"],
             outputPath: "{auto}",
             overrides: null
+        },
+        publish: {
+            galleryUrl: "https://app.market.visualstudio.com",
+            token: null,
+            vsixPath: null
         }
     };
     function doPackageCreate(settings) {
+        log.info("Begin package creation", 1);
         var merger = new package.Package.Merger(settings);
-        log("Beginning merge of partial manifests.");
+        log.info("Merge partial manifests", 2);
         return merger.merge().then(function (manifests) {
-            log("Merge completed.");
+            log.success("Merged successfully");
             var vsixWriter = new package.Package.VsixWriter(manifests.vsoManifest, manifests.vsixManifest);
-            log("Beginning writing VSIX");
+            log.info("Beginning writing VSIX", 2);
             return vsixWriter.writeVsix(settings.outputPath).then(function (outPath) {
-                log("VSIX written to: " + outPath);
+                log.info("VSIX written to: %s", 3, outPath);
                 return outPath;
             });
         }).then(function (outPath) {
-            warn("Successfully created VSIX package.");
+            log.success("Successfully created VSIX package.");
             return outPath;
         });
     }
     function doPublish(settings) {
+        log.info("Begin publish to Gallery", 1);
         var publisher = new publish.Publish.PackagePublisher(settings);
-        return publisher.publish(settings.vsixPath);
+        return publisher.publish(settings.vsixPath).then(function () {
+            log.success("Successfully published VSIX from %s to the gallery.", settings.vsixPath);
+        });
     }
     function publishVsix(options) {
         return settings.resolveSettings(options, defaultSettings).then(function (settings) {
             return Q.Promise(function (resolve, reject, notify) {
-                if (!settings.package) {
-                    log("VSIX was manually specified. Skipping generation.");
-                    resolve(settings.publish.vsixPath);
+                try {
+                    if (!settings.package) {
+                        log.info("VSIX was manually specified. Skipping generation.", 1);
+                        resolve(settings.publish.vsixPath);
+                    }
+                    else {
+                        resolve(doPackageCreate(settings.package));
+                    }
                 }
-                else {
-                    resolve(doPackageCreate(settings.package));
+                catch (err) {
+                    reject(err);
                 }
             }).then(function (vsixPath) {
                 settings.publish.vsixPath = vsixPath;
                 return doPublish(settings.publish);
-            }).then(function () {
-                log("Successfully published VSIX from " + settings.publish.vsixPath + " to the gallery.");
-            }).catch(function (error) {
-                var errStr = _.isString(error) ? error : JSON.stringify(error, null, 4);
-                console.error("Error: " + errStr);
-            }).then(function () {
-                process.exit(0);
             });
-        }).catch(function (err) {
-            console.error(err);
-            process.exit(-1);
-        });
+        }).catch(errHandler.errLog);
     }
     App.publishVsix = publishVsix;
     function createPackage(options) {
         return settings.resolveSettings(options, defaultSettings).then(function (settings) {
-            return doPackageCreate(settings.package).then(function () {
-                process.exit(0);
-            });
-        }).catch(function (err) {
-            console.error(err);
-            process.exit(-1);
-        });
+            return doPackageCreate(settings.package);
+        }).catch(errHandler.errLog);
     }
     App.createPackage = createPackage;
     function createPublisher(name, displayName, description, options) {
+        log.info("Creating publisher %s", 1, name);
         return settings.resolveSettings(options, defaultSettings).then(function (options) {
             var pubManager = new publish.Publish.PublisherManager(options.publish);
             return pubManager.createPublisher(name, displayName, description).catch(console.error.bind(console));
         }).then(function () {
-            log("Successfully created publisher `" + name + "`.");
-            process.exit(0);
-        }).catch(function (err) {
-            console.error(err);
-            process.exit(-1);
-        });
+            log.success("Successfully created publisher `%s`", name);
+        }).catch(errHandler.errLog);
     }
     App.createPublisher = createPublisher;
     function deletePublisher(publisherName, options) {
+        log.info("Deleting publisher %s", 1, publisherName);
         return settings.resolveSettings(options, defaultSettings).then(function (options) {
             var pubManager = new publish.Publish.PublisherManager(options.publish);
             return pubManager.deletePublisher(publisherName).catch(console.error.bind(console));
         }).then(function () {
-            log("Successfully deleted publisher `" + publisherName + "`.");
-            process.exit(0);
-        }).catch(function (err) {
-            console.error(err);
-            process.exit(-1);
-        });
+            log.success("Successfully deleted publisher `%s`", publisherName);
+        }).catch(errHandler.errLog);
     }
     App.deletePublisher = deletePublisher;
     function toM85(pathToManifest, publisherName, outputPath, options) {
@@ -112,30 +101,30 @@ var App;
             outPath = pathToManifest;
         }
         if (fs.existsSync(outPath) && !options.forceOverwrite) {
-            throw "File " + outPath + " already exists. Specify the -f to force overwriting this file.";
+            log.error("File %s already exists. Specify the -f to force overwriting this file.", outPath);
+            process.exit(-1);
         }
         if (!publisherName) {
-            throw "Publisher name not specified.";
+            log.error("Publisher name not specified.");
+            process.exit(-1);
         }
         var upgrader = new upgrade.ToM85(pathToManifest, publisherName);
         return upgrader.execute(outPath).then(function () {
-            log("Successfully upgraded manifest to M85. Result written to " + outPath + ".");
-            process.exit(0);
-        }).catch(function (err) {
-            console.error(err);
-            process.exit(-1);
-        });
+            log.success("Successfully upgraded manifest to M85. Result written to %s", outPath);
+        }).catch(errHandler.errLog);
     }
     App.toM85 = toM85;
 })(App || (App = {}));
 var version = process.version;
 if (parseInt(version.split(".")[1], 10) < 12) {
-    log("Please upgrade to NodeJS v0.12.x or higher");
+    log.error("Please upgrade to NodeJS v0.12.x or higher");
     process.exit(-1);
 }
 program
     .version("0.0.1")
     .option("--fiddler", "Use the fiddler proxy for REST API calls.")
+    .option("--nologo", "Suppress printing the VSET logo.")
+    .option("--debug", "Print debug log messages.")
     .usage("command [options]");
 program
     .command("package")

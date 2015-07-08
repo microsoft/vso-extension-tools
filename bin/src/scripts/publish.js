@@ -6,9 +6,11 @@ var __extends = this.__extends || function (d, b) {
     d.prototype = new __();
 };
 var _ = require("lodash");
+var chalk = require("chalk");
 var errHandler = require("./errorhandler");
 var fs = require("fs");
 var GalleryClient = require("../lib/VSS/Gallery/RestClient");
+var log = require("./logger");
 var RestClient = require("../lib/VSS/WebApi/RestClient");
 var Q = require("q");
 var xml2js = require("xml2js");
@@ -21,8 +23,6 @@ var Publish;
                 throw "Invalid or missing gallery URL.";
             }
             if (!token || !/^[A-z0-9]{52}$/.test(token)) {
-                console.log(token);
-                console.log(token.length);
                 throw "Invalid or missing personal access token.";
             }
             this.galleryUrl = baseUrl;
@@ -42,10 +42,10 @@ var Publish;
                 displayName: displayName,
                 longDescription: description,
                 shortDescription: description
-            }).catch(errHandler.err);
+            }).catch(errHandler.httpErr);
         };
         PublisherManager.prototype.deletePublisher = function (name) {
-            return this.galleryClient.deletePublisher(name).catch(errHandler.err);
+            return this.galleryClient.deletePublisher(name).catch(errHandler.httpErr);
         };
         return PublisherManager;
     })(GalleryBase);
@@ -60,11 +60,16 @@ var Publish;
                 fs.readFile(vsixPath, function (err, data) {
                     if (err)
                         reject(err);
-                    console.log("Read vsix as zip... Size (bytes): " + data.length);
-                    resolve(new zip(data));
+                    log.debug("Read vsix as zip... Size (bytes): %s", data.length.toString());
+                    try {
+                        resolve(new zip(data));
+                    }
+                    catch (err) {
+                        reject(err);
+                    }
                 });
             }).then(function (zip) {
-                console.log("Files in the zip: " + Object.keys(zip.files).join(", "));
+                log.debug("Files in the zip: %s", Object.keys(zip.files).join(", "));
                 var vsixManifestFileNames = Object.keys(zip.files).filter(function (key) { return _.endsWith(key, "vsixmanifest"); });
                 if (vsixManifestFileNames.length > 0) {
                     return Q.nfcall(xml2js.parseString, zip.files[vsixManifestFileNames[0]].asText());
@@ -99,18 +104,18 @@ var Publish;
             var extPackage = {
                 extensionManifest: fs.readFileSync(vsixPath, "base64")
             };
-            console.log("Begin publish for vsix at " + vsixPath);
-            console.log("Checking if this extension is already published...");
+            log.debug("Publishing %s", vsixPath);
+            log.info("Checking if this extension is already published", 2);
             return this.checkVsixPublished(vsixPath).then(function (publishedExtInfo) {
                 if (publishedExtInfo) {
-                    console.log("It is, update the extension");
+                    log.info("It is, %s the extension", 3, chalk.cyan("update").toString());
                     return _this.galleryClient.updateExtension(extPackage, publishedExtInfo.publisher, publishedExtInfo.id).then(function () {
-                    }).catch(errHandler.err);
+                    }).catch(errHandler.httpErr);
                 }
                 else {
-                    console.log("It isn't, create a new extension.");
+                    log.info("It isn't, %s a new extension.", 3, chalk.cyan("create").toString());
                     return _this.galleryClient.createExtension(extPackage).then(function () {
-                    }).catch(errHandler.err);
+                    }).catch(errHandler.httpErr);
                 }
             });
         };

@@ -1,4 +1,5 @@
-function err(obj) {
+var log = require("./logger");
+function httpErr(obj) {
     var errorAsObj = obj;
     if (typeof errorAsObj === "string") {
         try {
@@ -31,4 +32,25 @@ function err(obj) {
         throw errorBodyObj;
     }
 }
-exports.err = err;
+exports.httpErr = httpErr;
+function errLog(arg) {
+    if (typeof arg === "string") {
+        log.error(arg);
+    }
+    else if (typeof arg.toString === "function") {
+        log.error(arg.toString());
+    }
+    else if (typeof arg === "object") {
+        try {
+            log.error(JSON.parse(arg));
+        }
+        catch (e) {
+            log.error(arg);
+        }
+    }
+    else {
+        log.error(arg);
+    }
+    process.exit(-1);
+}
+exports.errLog = errLog;
