@@ -56,7 +56,9 @@ There are five commands:
 To see a list of commands, run `vset --help`. To get help, including available options, for any command, run `vset <command> --help`.
 
 ### Package
-This command packages a VSIX file with your extension manifest and your assets, ready to be published to the Gallery. You have two options for supplying inputs to this command: using command-line flags or using a settings file (see below). Otherwise, the following defaults will be used:
+This command packages a VSIX file with your extension manifest and your assets, ready to be published to the Gallery. First, we load all the manifests matched by the manifest-glob option, parse them as JSON, and attempt to merge them all into a single object. This allows you to maintain your manifest as several files, split into logical components. Then the VSIX package is generated and written to the file system.
+
+You have two options for supplying inputs to this command: using command-line flags or using a settings file (see below). Otherwise, the following defaults will be used:
 
 * `outputPath`: *current working directory*/*publisher*.*extension_namespace*-*version*.vsix
 * `root`: *current working directory*
@@ -159,9 +161,14 @@ Your settings file is a JSON file with two root properties: `package` and `publi
         "manifestGlobs": string|string[];
         
         /**
-         * Provides a way to conveniently override the publisher to the specified value
+         * Provides a way to silently override any values in the manifest. Useful, for example,
+         * if you want to publish your changes under a different publisher without changing the 
+         * extension manifest JSON.
+         * 
+         * The value of this property is treated just like any other partial manifest, except
+         * that it is given highest priority.
          */
-        "publisher": string;
+        "overrides": Object;
     }
     
     /**
@@ -185,3 +192,9 @@ Your settings file is a JSON file with two root properties: `package` and `publi
 
 #### Fiddler
 If you want your requests to route through the Fiddler proxy, you must pass in the `--fiddler` option. Fiddler must be open if this is passed; otherwise all requests will fail.
+
+#### Debug
+Pass the `--debug` flag to get additional log messages in the console window.
+
+#### Suppress title
+Pass the `--nologo` flag to suppress printing the title message when running the tool. Useful if you want to parse the output of the tool.
