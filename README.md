@@ -151,8 +151,11 @@ OR
 
 #### Examples
 `vset show --publisher fabrikam --extension my-extension --token xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx` - Show information about the "my-extension" extension published by fabrikam.
+
 `vset show --vsix C:/temp/path/to.vsix --token xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx` - Show information about the indicated *published* VSIX.
+
 `vset share --publisher fabrikam --extension my-private-extension --token xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx --share-with contoso,freezingfog` - Share the "my-private-extension" extension with the contoso and freezingfog accounts.
+
 `vset unshare --publisher fabrikam --extension my-private-extension --token xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx --share-with contoso,freezingfog` - Un-share the "my-private-extension" extension with the contoso and freezingfog accounts.
 
 You may also provide a `--settings` option (see below) to specify a personal access token.
