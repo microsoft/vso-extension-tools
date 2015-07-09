@@ -19,13 +19,12 @@ module PackageTests {
 						var merger = new package.Package.Merger(<settings.PackageSettings>{root: path.join(tmpPath, ".."), manifestGlobs: ["manifests/**/*.json"]});
 						merger.merge().then((manifests) => {
 							assert.equal(manifests.vsixManifest.PackageManifest.Assets[0].Asset.length, 2);
-							assert.equal(manifests.vsixManifest.PackageManifest.Metadata[0].Identity[0].$.Id, "samples.point-guide");
+							assert.equal(manifests.vsixManifest.PackageManifest.Metadata[0].Identity[0].$.Id, "samples-point-guide");
 							assert.equal(manifests.vsixManifest.PackageManifest.Metadata[0].Tags[0].length, 15);
 							
-							var contributionsKeys = Object.keys(manifests.vsoManifest.contributions);
-							assert.equal(contributionsKeys.length, 19);
-							assert.equal(contributionsKeys.indexOf("vss.code.web#sourceGridItemActions") >= 0, true);
-							assert.equal(manifests.vsoManifest.contributions["vss.code.web#sourceGridItemActions"].length, 2);
+							var contributions = manifests.vsoManifest.contributions;
+							console.log(contributions);
+							assert.equal(contributions.length, 19);
 							done();
 						}).catch(console.error.bind(console));
 					});

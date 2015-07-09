@@ -169,11 +169,12 @@ export class GalleryHttpClient extends VSS_WebApi.VssHttpClient {
         extensionQuery: Contracts.ExtensionQuery,
         accountToken?: string
         ): Q.Promise<Contracts.ExtensionQueryResult> {
-
+        
+        console.log(JSON.stringify(extensionQuery, null, 4));
+        
         var queryValues: any = {
             accountToken: accountToken,
         };
-
         return this._beginRequest<Contracts.ExtensionQueryResult>({
             httpMethod: "POST",
             area: "gallery",

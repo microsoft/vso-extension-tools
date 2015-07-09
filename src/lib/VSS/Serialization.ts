@@ -146,7 +146,6 @@ export module ContractSerializer {
                 }
             });
         }
-
         return processedItem;
     }
 

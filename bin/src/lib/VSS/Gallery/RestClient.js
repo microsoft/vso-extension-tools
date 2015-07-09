@@ -106,6 +106,7 @@ var GalleryHttpClient = (function (_super) {
         });
     };
     GalleryHttpClient.prototype.queryExtensions = function (extensionQuery, accountToken) {
+        console.log(JSON.stringify(extensionQuery, null, 4));
         var queryValues = {
             accountToken: accountToken,
         };

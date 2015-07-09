@@ -16,25 +16,60 @@ import zip = require("jszip");
 export module Publish {
 	
 	class GalleryBase {
-		protected token: string;
-		protected galleryUrl: string;
+		protected settings: settings.PublishSettings;
 		protected galleryClient: GalleryClient.GalleryHttpClient;
+		private vsixInfoPromise: Q.Promise<{id: string, publisher: string}>;
 		
 		/**
 		 * Constructor
-		 * @param string baseUrl of the Gallery
-		 * @param string personal access token with all accounts and all scopes access
+		 * @param PublishSettings
 		 */
-		constructor(baseUrl: string, token: string) {
-			if (!baseUrl || !/^https?:\/\//.test(baseUrl)) {
+		constructor(settings: settings.PublishSettings) {
+			if (!settings.galleryUrl || !/^https?:\/\//.test(settings.galleryUrl)) {
 				throw "Invalid or missing gallery URL.";
 			}
-			if (!token || !/^[A-z0-9]{52}$/.test(token)) {
+			if (!settings.token || !/^[A-z0-9]{52}$/.test(settings.token)) {
 				throw "Invalid or missing personal access token.";
 			}
-			this.galleryUrl = baseUrl;
-			this.token = token;
-			this.galleryClient = RestClient.VssHttpClient.getClient(GalleryClient.GalleryHttpClient, this.galleryUrl, this.token);
+			this.settings = settings;
+			this.galleryClient = RestClient.VssHttpClient.getClient(GalleryClient.GalleryHttpClient, this.settings.galleryUrl, this.settings.token);
+		}
+		
+		protected getExtensionIdAndPublisher(): Q.Promise<{id: string, publisher: string}> {
+			if (!this.vsixInfoPromise) {
+				if (this.settings.extensionId && this.settings.publisher) {
+					this.vsixInfoPromise = Q.resolve({id: this.settings.extensionId, publisher: this.settings.publisher});
+				} else {
+					this.vsixInfoPromise = Q.Promise<JSZip>((resolve, reject, notify) => {
+						fs.readFile(this.settings.vsixPath, function(err, data) {
+							if (err) reject(err);
+							log.debug("Read vsix as zip... Size (bytes): %s", data.length.toString());
+							try {
+								resolve(new zip(data));
+							} catch (err) {
+								reject(err);
+							}
+						});
+					}).then((zip) => {
+						log.debug("Files in the zip: %s", Object.keys(zip.files).join(", "));
+						let vsixManifestFileNames = Object.keys(zip.files).filter(key => _.endsWith(key, "vsixmanifest"));
+						if (vsixManifestFileNames.length > 0) {
+							return Q.nfcall(xml2js.parseString, zip.files[vsixManifestFileNames[0]].asText());
+						} else {
+							throw "Could not locate vsix manifest!";
+						}
+					}).then((vsixManifestAsJson) => {
+						let extensionId: string = _.get<string>(vsixManifestAsJson, "PackageManifest.Metadata[0].Identity[0].$.Id");
+						let extensionPublisher: string = _.get<string>(vsixManifestAsJson, "PackageManifest.Metadata[0].Identity[0].$.Publisher");
+						if (extensionId && extensionPublisher) {
+							return {id: extensionId, publisher: extensionPublisher};
+						} else {
+							throw "Could not locate both the extension id and publisher in vsix manfiest! Ensure your manifest includes both a namespace and a publisher property.";
+						}
+					});
+				} 
+			}
+			return this.vsixInfoPromise;
 		}
 	}
 	
@@ -45,11 +80,10 @@ export module Publish {
 		
 		/**
 		 * Constructor
-		 * @param string baseUrl of the Gallery
-		 * @param string personal access token with all accounts and all scopes access
+		 * @param PublishSettings
 		 */
 		constructor(settings: settings.PublishSettings) {
-			super(settings.galleryUrl, settings.token);
+			super(settings);
 		}
 		
 		/**
@@ -78,49 +112,76 @@ export module Publish {
 		}
 	}
 	
+	export class SharingManager extends GalleryBase {
+		
+		private id: Q.Promise<string>;
+		private publisher: Q.Promise<string>;
+		
+		/**
+		 * Constructor
+		 * @param PublishSettings
+		 */
+		constructor(settings: settings.PublishSettings) {
+			super(settings);
+		}
+		
+		public shareWith(accounts: string[]): Q.Promise<any> {
+			return this.getExtensionIdAndPublisher().then((extInfo) => {
+				return Q.all(accounts.map((account) => {
+					return this.galleryClient.shareExtension(extInfo.publisher, extInfo.id, account).catch(errHandler.httpErr);
+				}));
+			});
+		}
+		
+		public unshareWith(accounts: string[]): Q.Promise<any> {
+			return this.getExtensionIdAndPublisher().then((extInfo) => {
+				return Q.all(accounts.map((account) => {
+					return this.galleryClient.unshareExtension(extInfo.publisher, extInfo.id, account).catch(errHandler.httpErr);
+				}));
+			});
+		}
+		
+		public unshareWithAll(): Q.Promise<any> {
+			return this.getSharedWithAccounts().then((accounts) => {
+				return this.unshareWith(accounts);
+			});
+		}
+		
+		public getSharedWithAccounts() {
+			return this.getExtensionInfo().then((ext) => {
+				return ext.allowedAccounts.map(acct => acct.accountName);
+			});
+		}
+		
+		public getExtensionInfo(): Q.Promise<GalleryContracts.PublishedExtension> {
+			return this.getExtensionIdAndPublisher().then((extInfo) => {
+				return this.galleryClient.getExtension(
+					extInfo.publisher, 
+					extInfo.id, 
+					null, 
+					GalleryContracts.ExtensionQueryFlags.IncludeVersions |
+						GalleryContracts.ExtensionQueryFlags.IncludeFiles |
+						GalleryContracts.ExtensionQueryFlags.IncludeCategoryAndTags |
+						GalleryContracts.ExtensionQueryFlags.IncludeSharedAccounts).then((extension) => {
+						
+						return extension;
+				}).catch(errHandler.httpErr);
+			});
+		}
+	}
+	
 	export class PackagePublisher extends GalleryBase {
 		
 		/**
 		 * Constructor
-		 * @param string baseUrl of the Gallery
-		 * @param string personal access token with all accounts and all scopes access
+		 * @param PublishSettings settings
 		 */
 		constructor(settings: settings.PublishSettings) {
-			super(settings.galleryUrl, settings.token);
-		}
-		
-		private getExtensionIdAndPublisher(vsixPath: string): Q.Promise<{id: string, publisher: string}> {
-			return Q.Promise<JSZip>((resolve, reject, notify) => {
-				fs.readFile(vsixPath, function(err, data) {
-					if (err) reject(err);
-					log.debug("Read vsix as zip... Size (bytes): %s", data.length.toString());
-					try {
-						resolve(new zip(data));
-					} catch (err) {
-						reject(err);
-					}
-				});
-			}).then((zip) => {
-				log.debug("Files in the zip: %s", Object.keys(zip.files).join(", "));
-				let vsixManifestFileNames = Object.keys(zip.files).filter(key => _.endsWith(key, "vsixmanifest"));
-				if (vsixManifestFileNames.length > 0) {
-					return Q.nfcall(xml2js.parseString, zip.files[vsixManifestFileNames[0]].asText());
-				} else {
-					throw "Could not locate vsix manifest!";
-				}
-			}).then((vsixManifestAsJson) => {
-				let extensionId: string = _.get<string>(vsixManifestAsJson, "PackageManifest.Metadata[0].Identity[0].$.Id");
-				let extensionPublisher: string = _.get<string>(vsixManifestAsJson, "PackageManifest.Metadata[0].Identity[0].$.Publisher");
-				if (extensionId && extensionPublisher) {
-					return {id: extensionId, publisher: extensionPublisher};
-				} else {
-					throw "Could not locate both the extension id and publisher in vsix manfiest! Ensure your manifest includes both a namespace and a publisher property.";
-				}
-			});
+			super(settings);
 		}
 		
 		private checkVsixPublished(vsixPath: string): Q.Promise<{id: string, publisher: string}> {
-			return this.getExtensionIdAndPublisher(vsixPath).then((extInfo) => {
+			return this.getExtensionIdAndPublisher().then((extInfo) => {
 				return this.galleryClient.getExtension(extInfo.publisher, extInfo.id).then((ext) => {
 					if (ext) {
 						return extInfo;
@@ -135,16 +196,16 @@ export module Publish {
 		 * @param string path to a VSIX extension to publish
 		 * @return Q.Promise that is resolved when publish is complete
 		 */
-		public publish(vsixPath: string): Q.Promise<any> {
+		public publish(): Q.Promise<any> {
 			
 			let extPackage: GalleryContracts.ExtensionPackage = {
-				extensionManifest: fs.readFileSync(vsixPath, "base64")
+				extensionManifest: fs.readFileSync(this.settings.vsixPath, "base64")
 			};
-			log.debug("Publishing %s", vsixPath);
+			log.debug("Publishing %s", this.settings.vsixPath);
 			
 			// Check if the app is already published. If so, call the update endpoint. Otherwise, create.
 			log.info("Checking if this extension is already published", 2);
-			return this.checkVsixPublished(vsixPath).then((publishedExtInfo) => {
+			return this.checkVsixPublished(this.settings.vsixPath).then((publishedExtInfo) => {
 				if (publishedExtInfo) {
 					log.info("It is, %s the extension", 3, chalk.cyan("update").toString());
 					return this.galleryClient.updateExtension(extPackage, publishedExtInfo.publisher, publishedExtInfo.id).then(() => {

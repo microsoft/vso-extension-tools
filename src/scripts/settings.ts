@@ -15,6 +15,9 @@ export interface PublishSettings {
 	galleryUrl: string;
 	token: string;
 	vsixPath: string;
+	publisher: string;
+	extensionId: string;
+	shareWith: string[];
 }
 export interface PackageSettings {
 	root: string;
@@ -26,10 +29,16 @@ export interface CommandLineOptions {
 	root?: string;
 	manifestGlob?: string;
 	outputPath?: string;
+	token?: string;
+	galleryUrl?: string;
 	vsix?: string;
+	publisher?: string;
+	extension?: string;
 	settings?: string;
 	forceOverwrite?: boolean;
 	overrides?: any;
+	shareWith?: string;
+	unshareWith?: string;
 }
 
 
@@ -49,8 +58,26 @@ export function resolveSettings(options: CommandLineOptions, defaults?: AppSetti
 	if (options.settings) {
 		settingsPath = options.settings;
 	}
+	if (options.galleryUrl) {
+		_.set(passedOptions, "publish.galleryUrl", options.galleryUrl);
+	}
+	if (options.token) {
+		_.set(passedOptions, "publish.token", options.token);
+	}
 	if (options.vsix) {
 		_.set(passedOptions, "publish.vsixPath", options.vsix);
+	}
+	if (options.publisher) {
+		_.set(passedOptions, "publish.publisher", options.publisher);
+	}
+	if (options.extension) {
+		_.set(passedOptions, "publish.extensionId", options.extension);
+	}
+	if (options.shareWith) {
+		_.set(passedOptions, "publish.shareWith", options.shareWith.split(/,|;/));
+	}
+	if (options.unshareWith) {
+		_.set(passedOptions, "publish.shareWith", options.unshareWith.split(/,|;/));
 	}
 	
 	// Parse any overrides passed in as a command line option.

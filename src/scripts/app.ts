@@ -25,7 +25,10 @@ module App {
 		publish: {
 			galleryUrl: "https://app.market.visualstudio.com",
 			token: null,
-			vsixPath: null
+			vsixPath: null,
+			publisher: null,
+			extensionId: null,
+			shareWith: []
 		}
 	};
 	
@@ -50,9 +53,23 @@ module App {
 	function doPublish(settings: settings.PublishSettings): Q.Promise<any> {
 		log.info("Begin publish to Gallery", 1);
 		let publisher = new publish.Publish.PackagePublisher(settings);
-		return publisher.publish(settings.vsixPath).then(() => {
+		return publisher.publish().then(() => {
 			log.success("Successfully published VSIX from %s to the gallery.", settings.vsixPath);
 		});
+	}
+	
+	function doSharing(settings: settings.PublishSettings, unshare: boolean = false): Q.Promise<any> {
+		log.info("Begin %ssharing with accounts: %s", 1, unshare ? "un-" : "", settings.shareWith.join(", "));
+		let sharingMgr = new publish.Publish.SharingManager(settings);
+		if (!unshare) {
+			return sharingMgr.shareWith(settings.shareWith).then(() => {
+				log.success("Extension shared successfully.");
+			});
+		} else {
+			return sharingMgr.unshareWith(settings.shareWith).then(() => {
+				log.success("Extension un-shared successfully.");
+			});
+		}
 	}
 	
 	export function publishVsix(options: settings.CommandLineOptions): Q.Promise<any> {
@@ -71,6 +88,40 @@ module App {
 			}).then((vsixPath) => {
 				settings.publish.vsixPath = vsixPath;
 				return doPublish(settings.publish);
+			}).then(() => {
+				if (settings.publish.shareWith && settings.publish.shareWith.length > 0) {
+					return doSharing(settings.publish);
+				}
+			});
+		}).catch(errHandler.errLog);
+	}
+	
+	export function shareExtension(options: settings.CommandLineOptions): Q.Promise<any> {
+		return settings.resolveSettings(options, defaultSettings).then((settings) => {
+			if (settings.publish.shareWith && settings.publish.shareWith.length > 0) {
+				return doSharing(settings.publish);
+			} else {
+				throw "You must specify specific accounts to share with.";
+			}
+		}).catch(errHandler.errLog);
+	}
+	
+	export function unshareExtension(options: settings.CommandLineOptions): Q.Promise<any> {
+		return settings.resolveSettings(options, defaultSettings).then((settings) => {
+			if (settings.publish.shareWith && settings.publish.shareWith.length > 0) {
+				return doSharing(settings.publish, true);
+			} else {
+				throw "You must specify specific accounts to un-share with.";
+			}
+		}).catch(errHandler.errLog);
+	}
+	
+	export function showExtension(options: settings.CommandLineOptions): Q.Promise<any> {
+		return settings.resolveSettings(options, defaultSettings).then((settings) => {
+			log.info("Getting extension info...", 1);
+			let sharingMgr = new publish.Publish.SharingManager(settings.publish);
+			return sharingMgr.getExtensionInfo().then((info) => {
+				log.info(JSON.stringify(info, null, 4), 3);
 			});
 		}).catch(errHandler.errLog);
 	}
@@ -152,6 +203,7 @@ program
 	.option("-o, --output-path <output>", "Specify the path and file name of the generated vsix. [..]")
 	.option("-g, --gallery-url <gallery_url>", "Specify the URL to the gallery.")
 	.option("-t, --token <token>", "Specify your personal access token.")
+	.option("-w, --share-with <share_with>", "Comma-separated list of accounts to share the extension with after it is published.")
 	.option("-s, --settings <settings_path>", "Specify the path to a settings file")
 	.action(App.publishVsix);
 	
@@ -170,6 +222,41 @@ program
 	.option("-t, --token <token>", "Specify your personal access token.")
 	.option("-s, --settings <settings_path>", "Specify the path to a settings file")
 	.action(App.deletePublisher);
+	
+program
+	.command("share")
+	.description("Share a private extension with other accounts.")
+	.option("-w, --share-with <share_with>", "Comma-separated list of accounts to share the extension with.")
+	.option("-p, --publisher <publisher>", "Specify the publisher of the extension to be shared.")
+	.option("-e, --extension <extension_id>", "Specify the name of the extension to be shared.")
+	.option("-v, --vsix <path_to_vsix>", "If specified, discovers the publisher & extension ID from the package.")
+	.option("-g, --gallery-url <gallery_url>", "Specify the URL to the gallery.")
+	.option("-t, --token <token>", "Specify your personal access token.")
+	.option("-s, --settings <settings_path>", "Specify the path to a settings file")
+	.action(App.shareExtension);
+	
+program
+	.command("unshare")
+	.description("Un-share a private extension with other accounts.")
+	.option("-w, --unshare-with <unshare_with>", "Comma-separated list of accounts to un-share the extension with.")
+	.option("-p, --publisher <publisher>", "Specify the publisher of the extension to be un-shared.")
+	.option("-e, --extension <extension_id>", "Specify the name of the extension to be un-shared.")
+	.option("-v, --vsix <path_to_vsix>", "If specified, discovers the publisher & extension ID from the package.")
+	.option("-g, --gallery-url <gallery_url>", "Specify the URL to the gallery.")
+	.option("-t, --token <token>", "Specify your personal access token.")
+	.option("-s, --settings <settings_path>", "Specify the path to a settings file")
+	.action(App.unshareExtension);
+	
+program
+	.command("show")
+	.description("Show information about an extension.")
+	.option("-p, --publisher <publisher>", "Specify the publisher of the extension to be shared.")
+	.option("-e, --extension <extension_id>", "Specify the name of the extension to be shared.")
+	.option("-v, --vsix <path_to_vsix>", "If specified, discovers the publisher & extension ID from the package.")
+	.option("-g, --gallery-url <gallery_url>", "Specify the URL to the gallery.")
+	.option("-t, --token <token>", "Specify your personal access token.")
+	.option("-s, --settings <settings_path>", "Specify the path to a settings file")
+	.action(App.showExtension);
 	
 program
 	.command("migrate <path_to_manifest> <publisher_name> [output_path]")

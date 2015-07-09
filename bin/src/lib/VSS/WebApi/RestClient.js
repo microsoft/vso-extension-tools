@@ -7,6 +7,9 @@ var Serialization = require("../Serialization");
 var VssHttpClient = (function () {
     function VssHttpClient(rootRequestPath) {
         this.rootRequestPath = rootRequestPath;
+        if (!_.endsWith(this.rootRequestPath, "/")) {
+            this.rootRequestPath += "/";
+        }
         this._locationsByAreaPromises = {};
     }
     VssHttpClient.getClient = function (type, baseUrl, authToken) {
@@ -25,7 +28,7 @@ var VssHttpClient = (function () {
         if (useAjaxResult === void 0) { useAjaxResult = false; }
         var deferred = Q.defer();
         if (_.isObject(requestParams.queryParams)) {
-            requestParams.queryParams = _.omit(requestParams.queryParams, function (key) { return requestParams.queryParams[key] === undefined; });
+            requestParams.queryParams = _.omit(requestParams.queryParams, function (val) { return val === undefined; });
         }
         if (requestParams.routeTemplate) {
             var requestUrl = this.getRequestUrl(requestParams.routeTemplate, requestParams.area, requestParams.resource, requestParams.routeValues, requestParams.queryParams);
@@ -70,7 +73,12 @@ var VssHttpClient = (function () {
         requestOptions["json"] = requestData;
         var promise = this._issueRequest(requestOptions);
         promise.spread(function (response, body) {
-            var resolvedData = Serialization.ContractSerializer.deserialize(body, requestParams.responseType, false, requestParams.responseIsCollection);
+            var json = body;
+            try {
+                json = JSON.parse(json);
+            }
+            catch (e) { }
+            var resolvedData = Serialization.ContractSerializer.deserialize(json, requestParams.responseType, false, requestParams.responseIsCollection);
             deferred.resolve(resolvedData);
         }, deferred.reject);
     };
@@ -83,11 +91,13 @@ var VssHttpClient = (function () {
                 if (error) {
                     reject(error);
                 }
-                if (Math.floor(response.statusCode / 100) !== 2) {
-                    reject(response);
-                }
                 else {
-                    resolve([response, body]);
+                    if (Math.floor(response.statusCode / 100) !== 2) {
+                        reject(response);
+                    }
+                    else {
+                        resolve([response, body]);
+                    }
                 }
             });
         });

@@ -160,6 +160,9 @@ export class VssHttpClient {
 
     constructor(rootRequestPath: string) {
         this.rootRequestPath = rootRequestPath;
+        if (!_.endsWith(this.rootRequestPath, "/")) {
+            this.rootRequestPath += "/";
+        }
         this._locationsByAreaPromises = {};
     }
     
@@ -188,9 +191,8 @@ export class VssHttpClient {
         
         // Remove any query params whose value is undefined
         if (_.isObject(requestParams.queryParams)) {
-            requestParams.queryParams = _.omit<{[key: string]: any}, {[key: string]: any}>(requestParams.queryParams, key => requestParams.queryParams[key] === undefined);
+            requestParams.queryParams = _.omit<{[key: string]: any}, {[key: string]: any}>(requestParams.queryParams, val => val === undefined);
         }
-
         if (requestParams.routeTemplate) {
             let requestUrl = this.getRequestUrl(requestParams.routeTemplate, requestParams.area, requestParams.resource, requestParams.routeValues, requestParams.queryParams);
             this._beginRequestToResolvedUrl(requestUrl, requestParams.apiVersion, requestParams, deferred, useAjaxResult);
@@ -245,10 +247,13 @@ export class VssHttpClient {
         }, requestParams.customHeaders);
         
         requestOptions["json"] = requestData;
-
         let promise = <Q.Promise<T>>this._issueRequest(requestOptions);
         promise.spread((response, body) => {
-            let resolvedData = Serialization.ContractSerializer.deserialize(body, requestParams.responseType, false, requestParams.responseIsCollection);
+            let json = body;
+            try {
+                json = JSON.parse(json);
+            } catch (e) {}
+            let resolvedData = Serialization.ContractSerializer.deserialize(json, requestParams.responseType, false, requestParams.responseIsCollection);
             deferred.resolve(resolvedData);
         }, deferred.reject);
     }
@@ -272,17 +277,16 @@ export class VssHttpClient {
      * @param useAjaxResult If true, textStatus and jqXHR are added to the success callback. In this case, spread (instead of then) needs to be used.
      */
     public _issueRequest(requestOptions: request.Options): Q.Promise<any> {
-        // console.log("Issuing an ajax request with the following options: \n" + JSON.stringify(requestOptions, null, 4));
         return Q.Promise<[http.IncomingMessage, string]>((resolve, reject, notify) => {
             request(requestOptions, (error, response, body) => {
                 if (error) {
                     reject(error);
-                }
-                // console.log("Got response (" + response.statusCode + "): \n" + JSON.stringify(response.headers, null, 4));
-                if (Math.floor(response.statusCode / 100) !== 2) {
-                    reject(response);
                 } else {
-                    resolve([response, body]);
+                    if (Math.floor(response.statusCode / 100) !== 2) {
+                        reject(response);
+                    } else {
+                        resolve([response, body]);
+                    }
                 }
             });
         });
@@ -312,7 +316,6 @@ export class VssHttpClient {
             areaLocationsPromise = deferred.promise;
 
             let requestUrl = this.rootRequestPath + VssHttpClient.APIS_RELATIVE_PATH + "/" + area;
-
             this._issueRequest({uri: requestUrl, type: "OPTIONS" }).spread((response, body) => {
                 let locationsResult = JSON.parse(body);
                 let locationsLookup: VssApiResourceLocationLookup = {};

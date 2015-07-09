@@ -1,4 +1,4 @@
 @echo off
-pushd public
+pushd bin
 call mocha
 popd

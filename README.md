@@ -45,12 +45,15 @@ This tool will merge any number of manifest files (all in JSON format) into the 
 ## Run
 If you are on Windows, simply invoke the vset.cmd helper to run the tool. Otherwise, invoke `node app.js`.
 
-There are five commands:
+There are eight commands:
 
 * `package`. Generate a VSIX package from a set of partial manifests and assets.
 * `publish`. Publish a VSIX package, which is either manually specified or generated.
 * `create-publisher`. Create a publisher in the gallery.
 * `delete-publisher`. Delete a publisher in the gallery.
+* `share`. Share a private extension with other accounts.
+* `unshare`. Unshare a private extension.
+* `show`. Show information about an extension.
 * `migrate`. Upgrade a manifest to the M85 format.
 
 To see a list of commands, run `vset --help`. To get help, including available options, for any command, run `vset <command> --help`.
@@ -78,7 +81,7 @@ You can use the following command-line arguments to override the defaults:
 **Note**: When using command-line arguments, only one glob can be specified for finding manifests
 
 #### Examples
-`vset package --root . --output-path C:\temp\myextension.vsix --manifest-glob **/*.json` - use command line options to package a VSIX
+`vset package --root . --output-path C:\\temp\\myextension.vsix --manifest-glob **/*.json` - use command line options to package a VSIX
 
 `vset package` - use ./settings.vset.json (see below) or defaults (if settings.vset.json does not exist) to package a VSIX
 
@@ -87,7 +90,8 @@ This command publishes a VSIX file to the Gallery. The VSIX can either be genera
 
 ```txt
 -t, --token <string>       - Specify your personal access token.
--v, --vsix <string>        - If specified, publishes the VSIX at this path instead of auto-packaging
+-v, --vsix <string>        - If specified, publishes the VSIX at this path instead of auto-packaging.
+-w, --share-with <string>  - If specified, share the extension with the comma-separated list of accounts (private extensions only).
 ```
 
 To get a personal access token, navigate to `https://<your_account_url>/_details/security/tokens` and **Add** a new token for **All accessible accounts** and **All scopes**. Copy and paste the generated token into the settings.vset.json file.
@@ -99,9 +103,9 @@ If you don't want to keep the generated VSIX around after it is published, you c
 
 #### Examples
 
-`vset publish --root . --output-path C:\temp\myextension.vsix --manifest-glob **/*.json --token xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`
+`vset publish --root . --output-path C:\\temp\\myextension.vsix --manifest-glob **/*.json --token xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`
 
-`vset publish --vsix C:\temp\existingextension.vsix --token xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`
+`vset publish --vsix C:\\temp\\existingextension.vsix --token xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`
 
 `vset publish` - use ./settings.vset.json (see below) to publish a VSIX (which may be packaged also, depending on the presence of the publish.vsixPath property
 
@@ -130,6 +134,28 @@ If there already exists a file at `output_path` (or if it is omitted), you must 
 #### Examples
 `vset migrate extension.json MyPublisher extension-m85.json` - Migrate and write the result to extension-m85.json.
 `vset migrate extension.json MyPublisher --force` - Migrate and overwrite the original file. 
+
+### Sharing & Extension Info
+You can use the commands `show`, `share`, and `unshare` to get information about a published extension, share a published extension (private), and un-share a published extension (private), respectively.
+
+For each of these commands in addition to your personal access token, you must specify the extension, either by providing a path to the VSIX that was published, or by providing the publisher ID and extension ID.
+
+```txt
+-t, --token <string>     - Specify your personal access token.
+
+-v, --vsix <string>      - Path to the VSIX that was published.
+OR
+-p, --publisher <string> - ID of the publisher of the extension
+-e, --extension <string> - ExtensionId
+```
+
+#### Examples
+`vset show --publisher fabrikam --extension my-extension --token xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx` - Show information about the "my-extension" extension published by fabrikam.
+`vset show --vsix C:\\temp\\path\\to.vsix --token xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx` - Show information about the indicated *published* VSIX.
+`vset share --publisher fabrikam --extension my-private-extension --token xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx --share-with contoso,freezingfog` - Share the "my-private-extension" extension with the contoso and freezingfog accounts.
+`vset unshare --publisher fabrikam --extension my-private-extension --token xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx --share-with contoso,freezingfog` - Un-share the "my-private-extension" extension with the contoso and freezingfog accounts.
+
+You may also provide a `--settings` option (see below) to specify a personal access token.
 
 ### Advanced
 
@@ -186,6 +212,11 @@ Your settings file is a JSON file with two root properties: `package` and `publi
          * VSIX will be generated using package settings above
          */
 		"vsixPath": string;
+        
+        /**
+         * Array of account names to share this extension with
+         */
+        "shareWith": string[];
     }
 }
 ```

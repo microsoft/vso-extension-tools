@@ -21,8 +21,26 @@ function resolveSettings(options, defaults) {
     if (options.settings) {
         settingsPath = options.settings;
     }
+    if (options.galleryUrl) {
+        _.set(passedOptions, "publish.galleryUrl", options.galleryUrl);
+    }
+    if (options.token) {
+        _.set(passedOptions, "publish.token", options.token);
+    }
     if (options.vsix) {
         _.set(passedOptions, "publish.vsixPath", options.vsix);
+    }
+    if (options.publisher) {
+        _.set(passedOptions, "publish.publisher", options.publisher);
+    }
+    if (options.extension) {
+        _.set(passedOptions, "publish.extensionId", options.extension);
+    }
+    if (options.shareWith) {
+        _.set(passedOptions, "publish.shareWith", options.shareWith.split(/,|;/));
+    }
+    if (options.unshareWith) {
+        _.set(passedOptions, "publish.shareWith", options.unshareWith.split(/,|;/));
     }
     var parsedOverrides, args = process.argv.slice(2);
     for (var i = 0; i < args.length; ++i) {
