@@ -81,7 +81,7 @@ You can use the following command-line arguments to override the defaults:
 **Note**: When using command-line arguments, only one glob can be specified for finding manifests
 
 #### Examples
-`vset package --root . --output-path C:\\temp\\myextension.vsix --manifest-glob **/*.json` - use command line options to package a VSIX
+`vset package --root . --output-path C:/temp/myextension.vsix --manifest-glob **/*.json` - use command line options to package a VSIX
 
 `vset package` - use ./settings.vset.json (see below) or defaults (if settings.vset.json does not exist) to package a VSIX
 
@@ -103,9 +103,9 @@ If you don't want to keep the generated VSIX around after it is published, you c
 
 #### Examples
 
-`vset publish --root . --output-path C:\\temp\\myextension.vsix --manifest-glob **/*.json --token xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`
+`vset publish --root . --output-path C:/temp/myextension.vsix --manifest-glob **/*.json --token xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`
 
-`vset publish --vsix C:\\temp\\existingextension.vsix --token xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`
+`vset publish --vsix C:/temp/existingextension.vsix --token xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`
 
 `vset publish` - use ./settings.vset.json (see below) to publish a VSIX (which may be packaged also, depending on the presence of the publish.vsixPath property
 
@@ -151,7 +151,7 @@ OR
 
 #### Examples
 `vset show --publisher fabrikam --extension my-extension --token xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx` - Show information about the "my-extension" extension published by fabrikam.
-`vset show --vsix C:\\temp\\path\\to.vsix --token xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx` - Show information about the indicated *published* VSIX.
+`vset show --vsix C:/temp/path/to.vsix --token xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx` - Show information about the indicated *published* VSIX.
 `vset share --publisher fabrikam --extension my-private-extension --token xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx --share-with contoso,freezingfog` - Share the "my-private-extension" extension with the contoso and freezingfog accounts.
 `vset unshare --publisher fabrikam --extension my-private-extension --token xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx --share-with contoso,freezingfog` - Un-share the "my-private-extension" extension with the contoso and freezingfog accounts.
 
