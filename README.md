@@ -43,9 +43,9 @@ This tool will merge any number of manifest files (all in JSON format) into the 
 </ol>
 
 ## Run
-If you are on Windows, simply invoke the vset.cmd helper to run the tool. Otherwise, invoke `node app.js`.
+If you are on Windows and %APPDATA%\npm is in your PATH, simply invoke "vset". 
 
-There are eight commands:
+There are eight commands, one of which must be the first argument to vset:
 
 * `package`. Generate a VSIX package from a set of partial manifests and assets.
 * `publish`. Publish a VSIX package, which is either manually specified or generated.
