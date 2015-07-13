@@ -133,7 +133,7 @@ var App;
         log.info("Creating publisher %s", 1, name);
         return settings.resolveSettings(options, defaultSettings).then(function (options) {
             var pubManager = new publish.Publish.PublisherManager(options.publish);
-            return pubManager.createPublisher(name, displayName, description).catch(console.error.bind(console));
+            return pubManager.createPublisher(name, displayName, description);
         }).then(function () {
             log.success("Successfully created publisher `%s`", name);
         }).catch(errHandler.errLog);
@@ -143,7 +143,7 @@ var App;
         log.info("Deleting publisher %s", 1, publisherName);
         return settings.resolveSettings(options, defaultSettings).then(function (options) {
             var pubManager = new publish.Publish.PublisherManager(options.publish);
-            return pubManager.deletePublisher(publisherName).catch(console.error.bind(console));
+            return pubManager.deletePublisher(publisherName);
         }).then(function () {
             log.success("Successfully deleted publisher `%s`", publisherName);
         }).catch(errHandler.errLog);
@@ -188,7 +188,7 @@ program
     .option("-m, --manifest-glob <glob>", "Specify the pattern for manifest files to join. [**/*-manifest.json]")
     .option("-o, --output-path <output>", "Specify the path and file name of the generated vsix. [..]")
     .option("-s, --settings <settings_path>", "Specify the path to a settings file")
-    .option("-i, --override", "Specify a JSON string to override anything in the manifests.")
+    .option("-i, --override <overrides_JSON>", "Specify a JSON string to override anything in the manifests.")
     .action(App.createPackage);
 program
     .command("publish")
@@ -197,7 +197,7 @@ program
     .option("-r, --root <root>", "Specify the root for files in your vsix package. [.]")
     .option("-m, --manifest-glob <manifest-glob>", "Specify the pattern for manifest files to join. [**/*-manifest.json]")
     .option("-o, --output-path <output>", "Specify the path and file name of the generated vsix. [..]")
-    .option("i, --override <overrides_JSON>", "Specify a JSON string to override anything in the manifests.")
+    .option("-i, --override <overrides_JSON>", "Specify a JSON string to override anything in the manifests.")
     .option("-g, --gallery-url <gallery_url>", "Specify the URL to the gallery.")
     .option("-t, --token <token>", "Specify your personal access token.")
     .option("-w, --share-with <share_with>", "Comma-separated list of accounts to share the extension with after it is published.")
