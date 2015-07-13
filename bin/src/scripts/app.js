@@ -13,7 +13,7 @@ var App;
     var defaultSettings = {
         package: {
             root: process.cwd(),
-            manifestGlobs: ["**/*-manifest.json"],
+            manifestGlobs: ["**/vss-extension*.json"],
             outputPath: "{auto}",
             overrides: null
         },
@@ -179,6 +179,7 @@ program
     .option("--fiddler", "Use the fiddler proxy for REST API calls.")
     .option("--nologo", "Suppress printing the VSET logo.")
     .option("--debug", "Print debug log messages.")
+    .option("--save", "Save command line options to ./settings.vset.json")
     .usage("command [options]");
 program
     .command("package")
@@ -187,6 +188,7 @@ program
     .option("-m, --manifest-glob <glob>", "Specify the pattern for manifest files to join. [**/*-manifest.json]")
     .option("-o, --output-path <output>", "Specify the path and file name of the generated vsix. [..]")
     .option("-s, --settings <settings_path>", "Specify the path to a settings file")
+    .option("-i, --override", "Specify a JSON string to override anything in the manifests.")
     .action(App.createPackage);
 program
     .command("publish")
@@ -195,6 +197,7 @@ program
     .option("-r, --root <root>", "Specify the root for files in your vsix package. [.]")
     .option("-m, --manifest-glob <manifest-glob>", "Specify the pattern for manifest files to join. [**/*-manifest.json]")
     .option("-o, --output-path <output>", "Specify the path and file name of the generated vsix. [..]")
+    .option("i, --override <overrides_JSON>", "Specify a JSON string to override anything in the manifests.")
     .option("-g, --gallery-url <gallery_url>", "Specify the URL to the gallery.")
     .option("-t, --token <token>", "Specify your personal access token.")
     .option("-w, --share-with <share_with>", "Comma-separated list of accounts to share the extension with after it is published.")

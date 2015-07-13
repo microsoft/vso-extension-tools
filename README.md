@@ -67,11 +67,7 @@ You have two options for supplying inputs to this command: using command-line fl
 * `root`: *current working directory*
 * `manifestGlob`: \*\*/\*-manifest.json
 
-Invoke the app with the command `package`. If ./settings.vset.json exists, that will be used. Otherwise use the `--settings` option to specify the path to your settings file. E.g.:
-
-`vset package --settings path/to/settings.vset.json`
-
-#### Command-line arguments
+#### Command-line arguments for package
 You can use the following command-line arguments to override the defaults:
 ```txt
 -r, --root <string>
@@ -163,9 +159,11 @@ You may also provide a `--settings` option (see below) to specify a personal acc
 ### Advanced
 
 #### Settings file
-See the settings_example.json file for an example.
+See the settings.vset.example.json file for an example.
 
-You may create a settings file (JSON format) to specify options instead of passing them as inputs each time. By default, the tool will look for ./settings.vset.json if no settings file is specified. Otherwise, you may specify the path using the `--settings <path_to_settings>` option.
+To create a settings file, specify the `--save` option for any command. This will create a settings file (at the path provided from `--settings`, defaults to `./settings.vset.json`) to save any command line options that are passed in. This way, subsequent invocations of `vset` will use the same option values. Of course, options passed in the command line will always override those found in a settings file.
+
+If a file already exists at the settings path, any given command line options will be merged into the settings file. 
 
 Your settings file is a JSON file with two root properties: `package` and `publish`. Each of those points to a nested object with their respective settings, modeled by the following schema:
 ```typescript
@@ -217,9 +215,14 @@ Your settings file is a JSON file with two root properties: `package` and `publi
 		"vsixPath": string;
         
         /**
-         * Array of account names to share this extension with
+         * Array of account names to share this extension with.
          */
         "shareWith": string[];
+        
+        /**
+         * Url to the VSO Gallery. You will not need to set this (default should be fine).
+         */
+        "galleryUrl": string;
     }
 }
 ```
