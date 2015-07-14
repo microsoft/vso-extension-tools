@@ -324,24 +324,24 @@ export module Package {
 		 * List of known file types to use in the [Content_Types].xml file in the VSIX package.
 		 */
 		private static CONTENT_TYPE_MAP: {[key: string]: string} = {
-			txt: "text/plain",
-			pkgdef: "text/plain",
-			xml: "text/xml",
-			vsixmanifest: "text/xml",
-			vsomanifest: "application/json",
-			json: "application/json",
-			htm: "text/html",
-			html: "text/html",
-			rtf: "application/rtf",
-			pdf: "application/pdf",
-			gif: "image/gif",
-			jpg: "image/jpg",
-			jpeg: "image/jpg",
-			png: "image/png",
-			tiff: "image/tiff",
-			vsix: "application/zip",
-			zip: "application/zip",
-			dll: "application/octet-stream"
+			".txt": "text/plain",
+			".pkgdef": "text/plain",
+			".xml": "text/xml",
+			".vsixmanifest": "text/xml",
+			".vsomanifest": "application/json",
+			".json": "application/json",
+			".htm": "text/html",
+			".html": "text/html",
+			".rtf": "application/rtf",
+			".pdf": "application/pdf",
+			".gif": "image/gif",
+			".jpg": "image/jpg",
+			".jpeg": "image/jpg",
+			".png": "image/png",
+			".tiff": "image/tiff",
+			".vsix": "application/zip",
+			".zip": "application/zip",
+			".dll": "application/octet-stream"
 		};
 		
 		/**
