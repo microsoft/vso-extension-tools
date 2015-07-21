@@ -1,5 +1,5 @@
 /// <reference path="../../typings/tsd.d.ts" />
-var errHandler = require("./errorHandler");
+var errHandler = require("./errorhandler");
 var fs = require("fs");
 var log = require("./logger");
 var package = require("./package");

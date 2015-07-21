@@ -2,7 +2,7 @@
 
 import _ = require("lodash");
 import chalk = require("chalk");
-import errHandler = require("./errorHandler");
+import errHandler = require("./errorhandler");
 import fs = require("fs");
 import inquirer = require("inquirer");
 import log = require("./logger");
