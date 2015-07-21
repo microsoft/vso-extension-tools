@@ -36,9 +36,9 @@ module App {
 		log.info("Begin package creation", 1);
 		let merger = new package.Package.Merger(settings);
 		log.info("Merge partial manifests", 2);
-		return merger.merge().then((manifests) => {
+		return merger.merge().then((vsixComponents) => {
 			log.success("Merged successfully");
-			let vsixWriter = new package.Package.VsixWriter(manifests.vsoManifest, manifests.vsixManifest);
+			let vsixWriter = new package.Package.VsixWriter(vsixComponents.vsoManifest, vsixComponents.vsixManifest, vsixComponents.files);
 			log.info("Beginning writing VSIX", 2);
 			return vsixWriter.writeVsix(settings.outputPath).then((outPath: string) => {
 				log.info("VSIX written to: %s", 3, outPath);

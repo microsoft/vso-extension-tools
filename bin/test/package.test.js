@@ -32,7 +32,7 @@ var PackageTests;
                     withManifests(function (tmpPath) {
                         var merger = new package.Package.Merger({ root: path.join(tmpPath, ".."), manifestGlobs: ["manifests/**/*.json"] });
                         merger.merge().then(function (manifests) {
-                            var vsixWriter = new package.Package.VsixWriter(manifests.vsoManifest, manifests.vsixManifest);
+                            var vsixWriter = new package.Package.VsixWriter(manifests.vsoManifest, manifests.vsixManifest, manifests.files);
                             vsixWriter.writeVsix(path.join(path.dirname(tmpPath), "ext.vsix")).then(function () {
                                 done();
                             }).catch(console.error.bind(console));

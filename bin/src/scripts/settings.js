@@ -9,6 +9,7 @@ var tmp = require("tmp");
 function resolveSettings(options, defaults) {
     var passedOptions = {};
     var settingsPath = path.resolve("settings.vset.json");
+    var customSettings = false;
     var defaultSettings = defaults || {};
     if (options.manifestGlob) {
         _.set(passedOptions, "package.manifestGlobs", [options.manifestGlob]);
@@ -21,6 +22,7 @@ function resolveSettings(options, defaults) {
     }
     if (options.settings) {
         settingsPath = options.settings;
+        customSettings = true;
     }
     if (options.galleryUrl) {
         _.set(passedOptions, "publish.galleryUrl", options.galleryUrl);
@@ -50,7 +52,7 @@ function resolveSettings(options, defaults) {
         return Q.Promise(function (resolve, reject, notify) {
             try {
                 if (settingsPath) {
-                    resolve(parseSettingsFile(settingsPath).then(function (settings) {
+                    resolve(parseSettingsFile(settingsPath, !customSettings).then(function (settings) {
                         return _.merge({}, defaultSettings, settings, passedOptions);
                     }));
                 }
@@ -150,7 +152,7 @@ function saveCliOptions(cliOptions, settingsPath) {
         return Q.resolve(null);
     }
 }
-function parseSettingsFile(settingsPath) {
+function parseSettingsFile(settingsPath, noWarn) {
     return Q.Promise(function (resolve, reject, notify) {
         try {
             if (fs.existsSync(settingsPath)) {
@@ -166,7 +168,9 @@ function parseSettingsFile(settingsPath) {
             }
             else {
                 if (!program["save"]) {
-                    log.warn("No settings file found at %s.", settingsPath);
+                    if (!noWarn) {
+                        log.warn("No settings file found at %s.", settingsPath);
+                    }
                 }
                 resolve({});
             }

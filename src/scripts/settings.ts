@@ -45,6 +45,7 @@ export interface CommandLineOptions {
 export function resolveSettings(options: CommandLineOptions, defaults?: AppSettings): Q.Promise<AppSettings> {
 	let passedOptions = <AppSettings>{};
 	let settingsPath: string = path.resolve("settings.vset.json");
+	let customSettings = false;
 	let defaultSettings = defaults || {};
 	if (options.manifestGlob) {
 		_.set(passedOptions, "package.manifestGlobs", [options.manifestGlob]);
@@ -57,6 +58,7 @@ export function resolveSettings(options: CommandLineOptions, defaults?: AppSetti
 	}
 	if (options.settings) {
 		settingsPath = options.settings;
+		customSettings = true;
 	}
 	if (options.galleryUrl) {
 		_.set(passedOptions, "publish.galleryUrl", options.galleryUrl);
@@ -85,7 +87,7 @@ export function resolveSettings(options: CommandLineOptions, defaults?: AppSetti
 		return Q.Promise<AppSettings>((resolve, reject, notify) => {
 			try {
 				if (settingsPath) {
-					resolve(parseSettingsFile(settingsPath).then<AppSettings>((settings: AppSettings) => {
+					resolve(parseSettingsFile(settingsPath, !customSettings).then<AppSettings>((settings: AppSettings) => {
 						return _.merge<
 							any, 
 							AppSettings,
@@ -190,7 +192,7 @@ function saveCliOptions(cliOptions: AppSettings, settingsPath: string): Q.Promis
 	}
 }
 
-function parseSettingsFile(settingsPath: string): Q.Promise<AppSettings> {
+function parseSettingsFile(settingsPath: string, noWarn: boolean): Q.Promise<AppSettings> {
 	return Q.Promise<AppSettings>((resolve, reject, notify) => {
 		try {
 			if (fs.existsSync(settingsPath)) {
@@ -204,7 +206,9 @@ function parseSettingsFile(settingsPath: string): Q.Promise<AppSettings> {
 				}
 			} else {
 				if (!program["save"]) {
-					log.warn("No settings file found at %s.", settingsPath);
+					if (!noWarn) {
+						log.warn("No settings file found at %s.", settingsPath);
+					}
 				}
 				resolve({});
 			}

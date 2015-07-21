@@ -34,6 +34,7 @@ function httpErr(obj) {
 }
 exports.httpErr = httpErr;
 function errLog(arg) {
+    console.log(arg);
     if (typeof arg === "string") {
         log.error(arg);
     }

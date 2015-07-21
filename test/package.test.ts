@@ -37,7 +37,7 @@ module PackageTests {
 					withManifests((tmpPath) => {
 						var merger = new package.Package.Merger(<settings.PackageSettings>{root: path.join(tmpPath, ".."), manifestGlobs: ["manifests/**/*.json"]});
 						merger.merge().then((manifests) => {
-							var vsixWriter = new package.Package.VsixWriter(manifests.vsoManifest, manifests.vsixManifest);
+							var vsixWriter = new package.Package.VsixWriter(manifests.vsoManifest, manifests.vsixManifest, manifests.files);
 							vsixWriter.writeVsix(path.join(path.dirname(tmpPath), "ext.vsix")).then(() => {
 								done();
 							}).catch(console.error.bind(console));

@@ -1,11 +1,14 @@
 /// <reference path="../../typings/tsd.d.ts" />
 var _ = require("lodash");
+var defaultManifest = require("./default-manifest");
+var childProcess = require("child_process");
 var fs = require("fs");
 var glob = require("glob");
 var log = require("./logger");
 var path = require("path");
 var Q = require("q");
 var tmp = require("tmp");
+var winreg = require("winreg");
 var xml = require("xml2js");
 var zip = require("jszip");
 var Package;
@@ -68,8 +71,7 @@ var Package;
                         manifestPromises.push(Q.resolve(_this.mergeSettings.overrides));
                     }
                 });
-                var defaultVsixManifestPath = path.join(__dirname, "..", "tmpl", "default_vsixmanifest.json");
-                var vsixManifest = JSON.parse(fs.readFileSync(defaultVsixManifestPath, "utf8"));
+                var vsixManifest = JSON.parse(JSON.stringify(defaultManifest.defaultManifest));
                 vsixManifest.__meta_root = _this.mergeSettings.root;
                 var vsoManifest = {
                     __meta_root: _this.mergeSettings.root,
@@ -77,18 +79,22 @@ var Package;
                     contributions: [],
                     manifestVersion: 1.0
                 };
+                var packageFiles = {};
                 return Q.all(manifestPromises).then(function (partials) {
                     partials.forEach(function (partial) {
-                        if (_.isArray(partial["assets"])) {
-                            partial["assets"].forEach(function (asset) {
+                        if (_.isArray(partial["files"])) {
+                            partial["files"].forEach(function (asset) {
                                 var keys = Object.keys(asset);
-                                if (keys.length !== 2 || keys.indexOf("type") < 0 || keys.indexOf("path") < 0) {
-                                    throw "Assets must have a type and a path.";
+                                if (keys.indexOf("path") < 0) {
+                                    throw "Files must have an absolute or relative (to the manifest) path.";
                                 }
+                                var absolutePath;
                                 if (path.isAbsolute(asset.path)) {
-                                    throw "Paths in manifests must be relative.";
+                                    absolutePath = asset.path;
                                 }
-                                var absolutePath = path.join(path.dirname(partial.__origin), asset.path);
+                                else {
+                                    absolutePath = path.join(path.dirname(partial.__origin), asset.path);
+                                }
                                 asset.path = path.relative(_this.mergeSettings.root, absolutePath);
                             });
                         }
@@ -100,10 +106,10 @@ var Package;
                             });
                         }
                         Object.keys(partial).forEach(function (key) {
-                            _this.mergeKey(key, partial[key], vsoManifest, vsixManifest);
+                            _this.mergeKey(key, partial[key], vsoManifest, vsixManifest, packageFiles);
                         });
                     });
-                    return { vsoManifest: vsoManifest, vsixManifest: vsixManifest };
+                    return { vsoManifest: vsoManifest, vsixManifest: vsixManifest, files: packageFiles };
                 });
             });
         };
@@ -117,7 +123,7 @@ var Package;
             _.remove(items, function (v) { return v === ""; });
             _.set(object, path, _.uniq(items.concat(value)).join(delimiter));
         };
-        Merger.prototype.mergeKey = function (key, value, vsoManifest, vsixManifest) {
+        Merger.prototype.mergeKey = function (key, value, vsoManifest, vsixManifest, packageFiles) {
             switch (key.toLowerCase()) {
                 case "namespace":
                 case "extensionid":
@@ -223,18 +229,26 @@ var Package;
                         vsoManifest.contributionTypes = vsoManifest.contributionTypes.concat(value);
                     }
                     break;
-                case "assets":
+                case "files":
                     if (_.isArray(value)) {
                         value.forEach(function (asset) {
                             var assetPath = asset.path.replace(/\\/g, "/");
-                            vsixManifest.PackageManifest.Assets[0].Asset.push({
-                                "$": {
-                                    "Type": asset.type,
-                                    "d:Source": "File",
-                                    "Path": assetPath
-                                }
-                            });
-                            if (asset.type === "Microsoft.VisualStudio.Services.Icons.Default") {
+                            if (asset.assetType) {
+                                vsixManifest.PackageManifest.Assets[0].Asset.push({
+                                    "$": {
+                                        "Type": asset.assetType,
+                                        "d:Source": "File",
+                                        "Path": assetPath
+                                    }
+                                });
+                            }
+                            if (asset.contentType) {
+                                packageFiles[assetPath] = asset.contentType;
+                            }
+                            else {
+                                packageFiles[assetPath] = null;
+                            }
+                            if (asset.assetType === "Microsoft.VisualStudio.Services.Icons.Default") {
                                 vsixManifest.PackageManifest.Metadata[0].Icon = [assetPath];
                             }
                         });
@@ -246,9 +260,10 @@ var Package;
     })();
     Package.Merger = Merger;
     var VsixWriter = (function () {
-        function VsixWriter(vsoManifest, vsixManifest) {
+        function VsixWriter(vsoManifest, vsixManifest, files) {
             this.vsoManifest = vsoManifest;
             this.vsixManifest = vsixManifest;
+            this.files = files;
             this.prepManifests();
         }
         VsixWriter.prototype.prepManifests = function () {
@@ -312,6 +327,17 @@ var Package;
             if (!root) {
                 throw "Manifest root unknown. Manifest objects should have a __meta_root key specifying the absolute path to the root of assets.";
             }
+            var overrides = {};
+            Object.keys(this.files).forEach(function (file) {
+                if (_.endsWith(file, VsixWriter.VSO_MANIFEST_FILENAME)) {
+                    return;
+                }
+                var partName = file.replace(/\\/g, "/");
+                vsix.file(partName, fs.readFileSync(path.join(root, file)));
+                if (_this.files[file]) {
+                    overrides[partName] = _this.files[file];
+                }
+            });
             var assets = _.get(this.vsixManifest, "PackageManifest.Assets[0].Asset");
             if (_.isArray(assets)) {
                 assets.forEach(function (asset) {
@@ -341,7 +367,9 @@ var Package;
                     vsix.file(VsixWriter.VSIX_MANIFEST_FILENAME, fs.readFileSync(vsixPath, "utf-8"));
                 });
             }).then(function () {
-                vsix.file(VsixWriter.CONTENT_TYPES_FILENAME, _this.genContentTypesXml(Object.keys(vsix.files)));
+                return _this.genContentTypesXml(Object.keys(vsix.files), overrides);
+            }).then(function (contentTypesXml) {
+                vsix.file(VsixWriter.CONTENT_TYPES_FILENAME, contentTypesXml);
                 var buffer = vsix.generate({
                     type: "nodebuffer",
                     compression: "DEFLATE",
@@ -355,62 +383,173 @@ var Package;
                 });
             });
         };
-        VsixWriter.prototype.genContentTypesXml = function (fileNames) {
+        VsixWriter.prototype.genContentTypesXml = function (fileNames, overrides) {
+            var _this = this;
+            log.debug("Generating [Content_Types].xml");
             var contentTypes = {
                 Types: {
                     $: {
                         xmlns: "http://schemas.openxmlformats.org/package/2006/content-types"
                     },
-                    Default: []
+                    Default: [],
+                    Override: []
                 }
             };
-            var uniqueExtensions = _.unique(fileNames.map(function (f) { return _.trimLeft(path.extname(f)); }));
-            uniqueExtensions.forEach(function (ext) {
-                var type = VsixWriter.CONTENT_TYPE_MAP[ext];
-                if (!type) {
-                    type = "application/octet-stream";
-                }
-                contentTypes.Types.Default.push({
-                    $: {
-                        Extension: ext,
-                        ContentType: type
+            var windows = /^win/.test(process.platform);
+            var contentTypePromise;
+            if (windows) {
+                var contentTypePromises = [];
+                var extensionlessFiles = [];
+                var uniqueExtensions = _.unique(fileNames.map(function (f) {
+                    var extName = path.extname(f);
+                    if (!extName && !overrides[f]) {
+                        log.warn("File %s does not have an extension, and its content-type is not declared. Defaulting to application/octet-stream.", path.resolve(f));
+                    }
+                    return extName;
+                }));
+                uniqueExtensions.forEach(function (ext) {
+                    if (!ext) {
+                        return;
+                    }
+                    if (ext === ".vsomanifest") {
+                        contentTypes.Types.Default.push({
+                            $: {
+                                Extension: ext,
+                                ContentType: "application/json"
+                            }
+                        });
+                        return;
+                    }
+                    var hkcrKey = new winreg({
+                        hive: winreg.HKCR,
+                        key: "\\" + ext.toLowerCase()
+                    });
+                    var regPromise = Q.ninvoke(hkcrKey, "get", "Content Type").then(function (type) {
+                        log.debug("Found content type for %s: %s.", ext, type.value);
+                        var contentType = "application/octet-stream";
+                        if (type) {
+                            contentType = type.value;
+                        }
+                        return contentType;
+                    }).catch(function (err) {
+                        log.warn("Could not determine content type for file or extension %s. Defaulting to application/octet-stream. To override this, add a contentType property to this file entry in the manifest.", ext);
+                        return "application/octet-stream";
+                    }).then(function (contentType) {
+                        contentTypes.Types.Default.push({
+                            $: {
+                                Extension: ext,
+                                ContentType: contentType
+                            }
+                        });
+                    });
+                    contentTypePromises.push(regPromise);
+                });
+                contentTypePromise = Q.all(contentTypePromises);
+            }
+            else {
+                var contentTypePromises = [];
+                var extTypeCounter = {};
+                fileNames.forEach(function (fileName) {
+                    var extension = path.extname(fileName);
+                    var mimePromise = Q.Promise(function (resolve, reject, notify) {
+                        var child = childProcess.exec("file --mime-type " + fileName, function (err, stdout, stderr) {
+                            var magicMime = stdout.toString("utf8");
+                            try {
+                                if (err) {
+                                    reject(err);
+                                }
+                                if (magicMime) {
+                                    if (extension) {
+                                        if (!extTypeCounter[extension]) {
+                                            extTypeCounter[extension] = {};
+                                        }
+                                        var hitCounters = extTypeCounter[extension];
+                                        if (!hitCounters[magicMime]) {
+                                            hitCounters[magicMime] = [];
+                                        }
+                                        hitCounters[magicMime].push(fileName);
+                                    }
+                                    else {
+                                        if (!overrides[fileName]) {
+                                            overrides[fileName] = magicMime;
+                                        }
+                                    }
+                                }
+                                else {
+                                    if (stderr) {
+                                        reject(stderr.toString("utf8"));
+                                    }
+                                    else {
+                                        reject("No mime-type discovered for " + fileName);
+                                    }
+                                }
+                            }
+                            catch (e) {
+                                reject(e);
+                            }
+                        });
+                    });
+                    contentTypePromises.push(mimePromise);
+                });
+                contentTypePromise = Q.all(contentTypePromises).then(function () {
+                    Object.keys(extTypeCounter).forEach(function (ext) {
+                        var hitCounts = extTypeCounter[ext];
+                        var bestMatch = _this.maxKey(hitCounts, (function (i) { return i.length; }));
+                        Object.keys(hitCounts).forEach(function (type) {
+                            if (type === bestMatch) {
+                                return;
+                            }
+                            hitCounts[type].forEach(function (fileName) {
+                                overrides[fileName] = type;
+                            });
+                        });
+                        contentTypes.Types.Default.push({
+                            $: {
+                                Extension: ext,
+                                ContentType: bestMatch
+                            }
+                        });
+                    });
+                });
+            }
+            return contentTypePromise.then(function () {
+                Object.keys(overrides).forEach(function (partName) {
+                    contentTypes.Types.Override.push({
+                        $: {
+                            ContentType: overrides[partName],
+                            PartName: partName
+                        }
+                    });
+                });
+                var builder = new xml.Builder({
+                    indent: "    ",
+                    newline: require("os").EOL,
+                    pretty: true,
+                    xmldec: {
+                        encoding: "utf-8",
+                        standalone: null,
+                        version: "1.0"
                     }
                 });
+                return builder.buildObject(contentTypes);
             });
-            var builder = new xml.Builder({
-                indent: "    ",
-                newline: require("os").EOL,
-                pretty: true,
-                xmldec: {
-                    encoding: "utf-8",
-                    standalone: null,
-                    version: "1.0"
+        };
+        VsixWriter.prototype.maxKey = function (obj, func) {
+            var maxProp;
+            for (var prop in obj) {
+                if (!maxProp || func(obj[prop]) > func(obj[maxProp])) {
+                    maxProp = prop;
                 }
-            });
-            return builder.buildObject(contentTypes);
+            }
+            return maxProp;
         };
         VsixWriter.VSO_MANIFEST_FILENAME = "extension.vsomanifest";
         VsixWriter.VSIX_MANIFEST_FILENAME = "extension.vsixmanifest";
         VsixWriter.CONTENT_TYPES_FILENAME = "[Content_Types].xml";
         VsixWriter.CONTENT_TYPE_MAP = {
-            ".txt": "text/plain",
-            ".pkgdef": "text/plain",
-            ".xml": "text/xml",
-            ".vsixmanifest": "text/xml",
-            ".vsomanifest": "application/json",
-            ".json": "application/json",
-            ".htm": "text/html",
-            ".html": "text/html",
-            ".rtf": "application/rtf",
+            ".md": "text/markdown",
             ".pdf": "application/pdf",
-            ".gif": "image/gif",
-            ".jpg": "image/jpg",
-            ".jpeg": "image/jpg",
-            ".png": "image/png",
-            ".tiff": "image/tiff",
-            ".vsix": "application/zip",
-            ".zip": "application/zip",
-            ".dll": "application/octet-stream"
+            ".bat": "application/bat"
         };
         return VsixWriter;
     })();

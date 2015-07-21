@@ -30,9 +30,9 @@ var App;
         log.info("Begin package creation", 1);
         var merger = new package.Package.Merger(settings);
         log.info("Merge partial manifests", 2);
-        return merger.merge().then(function (manifests) {
+        return merger.merge().then(function (vsixComponents) {
             log.success("Merged successfully");
-            var vsixWriter = new package.Package.VsixWriter(manifests.vsoManifest, manifests.vsixManifest);
+            var vsixWriter = new package.Package.VsixWriter(vsixComponents.vsoManifest, vsixComponents.vsixManifest, vsixComponents.files);
             log.info("Beginning writing VSIX", 2);
             return vsixWriter.writeVsix(settings.outputPath).then(function (outPath) {
                 log.info("VSIX written to: %s", 3, outPath);

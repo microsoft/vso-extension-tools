@@ -1,4 +1,4 @@
-{
+export var defaultManifest = {
     "PackageManifest": {
         "$": {
             "Version": "2.0.0",
@@ -33,7 +33,7 @@
                 "Tags": [
                     
                 ],
-                "VSOFlags": [
+                "GalleryFlags": [
                     
                 ],
                 "Categories": [
@@ -63,4 +63,4 @@
             }
         ]
     }
-}
+};

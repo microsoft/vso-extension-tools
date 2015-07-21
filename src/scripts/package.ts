@@ -2,6 +2,8 @@
 
 import _ = require("lodash");
 import chalk = require("chalk");
+import defaultManifest = require("./default-manifest");
+import childProcess = require("child_process");
 import fs = require("fs");
 import glob = require("glob");
 import log = require("./logger");
@@ -9,7 +11,9 @@ import path = require("path");
 import Q = require("q");
 import settings = require("./settings");
 import stream = require("stream");
+import util = require("util");
 import tmp = require("tmp");
+import winreg = require("winreg");
 import xml = require("xml2js");
 import zip = require("jszip");
 
@@ -17,16 +21,26 @@ export module Package {
 	/**
 	 * Combines the vsix and vso manifests into one object
 	 */
-	export interface SplitManifest {
+	export interface VsixComponents {
 		vsoManifest: any;
 		vsixManifest: any;
+		files: PackageFiles;
 	}
 	
 	/**
-	 * Describes an asset in a manifest
+	 * List of files in the package, mapped to null, or, if it can't be properly auto-
+	 * detected, a content type.
 	 */
-	export interface AssetDeclaration {
-		type: string;
+	export interface PackageFiles {
+		[path: string]: string;
+	}
+	
+	/**
+	 * Describes a file in a manifest
+	 */
+	export interface FileDeclaration {
+		assetType?: string;
+		contentType?: string;
 		path: string;
 	}
 	
@@ -99,7 +113,7 @@ export module Package {
 		 * Finds all manifests and merges them into two JS Objects: vsoManifest and vsixManifest
 		 * @return Q.Promise<SplitManifest> An object containing the two manifests
 		 */
-		public merge(): Q.Promise<SplitManifest> {
+		public merge(): Q.Promise<VsixComponents> {
 			return this.gatherManifests(this.mergeSettings.manifestGlobs).then((files: string[]) => {
 				let manifestPromises: Q.Promise<any>[] = [];
 				files.forEach((file) => {
@@ -121,8 +135,8 @@ export module Package {
 						manifestPromises.push(Q.resolve(this.mergeSettings.overrides));
 					}
 				});
-				let defaultVsixManifestPath = path.join(__dirname, "..", "tmpl", "default_vsixmanifest.json"); 
-				let vsixManifest: any = JSON.parse(fs.readFileSync(defaultVsixManifestPath, "utf8"));
+				// Deep-copy of the default manifest.
+				let vsixManifest: any = JSON.parse(JSON.stringify(defaultManifest.defaultManifest));
 				vsixManifest.__meta_root = this.mergeSettings.root;
 				let vsoManifest: any = {
 					__meta_root: this.mergeSettings.root,
@@ -130,19 +144,22 @@ export module Package {
 					contributions: [],
 					manifestVersion: 1.0
 				};
+				let packageFiles: PackageFiles = {};
 				return Q.all(manifestPromises).then((partials: any[]) => {
 					partials.forEach((partial) => {
 						// Transform asset paths to be relative to the root of all manifests, verify assets
-						if (_.isArray(partial["assets"])) {
-							(<Array<AssetDeclaration>>partial["assets"]).forEach((asset) => {
+						if (_.isArray(partial["files"])) {
+							(<Array<FileDeclaration>>partial["files"]).forEach((asset) => {
 								let keys = Object.keys(asset);
-								if (keys.length !== 2 || keys.indexOf("type") < 0 || keys.indexOf("path") < 0) {
-									throw "Assets must have a type and a path.";
+								if (keys.indexOf("path") < 0) {
+									throw "Files must have an absolute or relative (to the manifest) path.";
 								}
+								let absolutePath;
 								if (path.isAbsolute(asset.path)) {
-									throw "Paths in manifests must be relative.";
+									absolutePath = asset.path;
+								} else {
+									absolutePath = path.join(path.dirname(partial.__origin), asset.path);
 								}
-								let absolutePath = path.join(path.dirname(partial.__origin), asset.path);
 								asset.path = path.relative(this.mergeSettings.root, absolutePath);
 							});
 						}
@@ -157,10 +174,10 @@ export module Package {
 						
 						// Merge each key of each partial manifest into the joined manifests
 						Object.keys(partial).forEach((key) => {
-							this.mergeKey(key, partial[key], vsoManifest, vsixManifest);
+							this.mergeKey(key, partial[key], vsoManifest, vsixManifest, packageFiles);
 						});
 					});
-					return <SplitManifest>{vsoManifest: vsoManifest, vsixManifest: vsixManifest};
+					return <VsixComponents>{vsoManifest: vsoManifest, vsixManifest: vsixManifest, files: packageFiles};
 				});
 			});
 		}
@@ -175,7 +192,7 @@ export module Package {
 			_.set(object, path, _.uniq(items.concat(value)).join(delimiter));
 		}
 		
-		private mergeKey(key: string, value: any, vsoManifest: any, vsixManifest: any): void {
+		private mergeKey(key: string, value: any, vsoManifest: any, vsixManifest: any, packageFiles: PackageFiles): void {
 			switch(key.toLowerCase()) {
 				case "namespace":
 				case "extensionid":
@@ -288,18 +305,25 @@ export module Package {
 						vsoManifest.contributionTypes = vsoManifest.contributionTypes.concat(value);
 					}
 					break;
-				case "assets": // fix me
+				case "files": 
 					if (_.isArray(value)) {
-						value.forEach((asset: AssetDeclaration) => {
+						value.forEach((asset: FileDeclaration) => {
 							let assetPath = asset.path.replace(/\\/g, "/");
-							vsixManifest.PackageManifest.Assets[0].Asset.push({
-								"$": {
-									"Type": asset.type,
-									"d:Source": "File",
-									"Path": assetPath
-								}
-							});
-							if (asset.type === "Microsoft.VisualStudio.Services.Icons.Default") {
+							if (asset.assetType) {
+								vsixManifest.PackageManifest.Assets[0].Asset.push({
+									"$": {
+										"Type": asset.assetType,
+										"d:Source": "File",
+										"Path": assetPath
+									}
+								});
+							}
+							if (asset.contentType) {
+								packageFiles[assetPath] = asset.contentType;
+							} else {
+								packageFiles[assetPath] = null;
+							}
+							if (asset.assetType === "Microsoft.VisualStudio.Services.Icons.Default") {
 								vsixManifest.PackageManifest.Metadata[0].Icon = [assetPath];
 							}
 						});
@@ -315,6 +339,7 @@ export module Package {
 	export class VsixWriter {
 		private vsoManifest: any;
 		private vsixManifest: any;
+		private files: PackageFiles;
 		
 		private static VSO_MANIFEST_FILENAME: string = "extension.vsomanifest";
 		private static VSIX_MANIFEST_FILENAME: string = "extension.vsixmanifest";
@@ -324,24 +349,9 @@ export module Package {
 		 * List of known file types to use in the [Content_Types].xml file in the VSIX package.
 		 */
 		private static CONTENT_TYPE_MAP: {[key: string]: string} = {
-			".txt": "text/plain",
-			".pkgdef": "text/plain",
-			".xml": "text/xml",
-			".vsixmanifest": "text/xml",
-			".vsomanifest": "application/json",
-			".json": "application/json",
-			".htm": "text/html",
-			".html": "text/html",
-			".rtf": "application/rtf",
+			".md": "text/markdown",
 			".pdf": "application/pdf",
-			".gif": "image/gif",
-			".jpg": "image/jpg",
-			".jpeg": "image/jpg",
-			".png": "image/png",
-			".tiff": "image/tiff",
-			".vsix": "application/zip",
-			".zip": "application/zip",
-			".dll": "application/octet-stream"
+			".bat": "application/bat"
 		};
 		
 		/**
@@ -349,9 +359,10 @@ export module Package {
 		 * @param any vsoManifest JS Object representing a vso manifest
 		 * @param any vsixManifest JS Object representing the XML for a vsix manifest
 		 */
-		constructor(vsoManifest: any, vsixManifest: any) {
+		constructor(vsoManifest: any, vsixManifest: any, files: PackageFiles) {
 			this.vsoManifest = vsoManifest;
 			this.vsixManifest = vsixManifest;
+			this.files = files;
 			this.prepManifests();
 		}
 		
@@ -434,6 +445,17 @@ export module Package {
 				throw "Manifest root unknown. Manifest objects should have a __meta_root key specifying the absolute path to the root of assets.";
 			}
 			// Add assets to vsix archive
+			let overrides: {[partName: string]: string} = {};
+			Object.keys(this.files).forEach((file) => {
+				if (_.endsWith(file, VsixWriter.VSO_MANIFEST_FILENAME)) {
+					return;
+				}
+				let partName = file.replace(/\\/g, "/"); 
+				vsix.file(partName, fs.readFileSync(path.join(root, file)));
+				if (this.files[file]) {
+					overrides[partName] = this.files[file];
+				}
+			});
 			let assets = <any[]>_.get(this.vsixManifest, "PackageManifest.Assets[0].Asset");
 			if (_.isArray(assets)) {
 				assets.forEach((asset) => {
@@ -464,7 +486,9 @@ export module Package {
 					vsix.file(VsixWriter.VSIX_MANIFEST_FILENAME, fs.readFileSync(vsixPath, "utf-8"));
 				});
 			}).then(() => {
-				vsix.file(VsixWriter.CONTENT_TYPES_FILENAME, this.genContentTypesXml(Object.keys(vsix.files)));
+				return this.genContentTypesXml(Object.keys(vsix.files), overrides);
+			}).then((contentTypesXml) => {
+				vsix.file(VsixWriter.CONTENT_TYPES_FILENAME, contentTypesXml);
 				let buffer = vsix.generate({
 					type: "nodebuffer",
 					compression: "DEFLATE",
@@ -477,7 +501,6 @@ export module Package {
 					return outputPath;
 				});
 			});
-				
 		}
 		
 		/**
@@ -485,39 +508,168 @@ export module Package {
 		 * This xml contains a <Default> entry for each different file extension
 		 * found in the package, mapping it to the appropriate MIME type.
 		 */
-		private genContentTypesXml(fileNames: string[]): string {
+		private genContentTypesXml(fileNames: string[], overrides: {[partName: string]: string}): Q.Promise<string> {
+			log.debug("Generating [Content_Types].xml");
 			let contentTypes: any = {
 				Types: {
 					$: {
 						xmlns: "http://schemas.openxmlformats.org/package/2006/content-types"
 					},
-					Default: []
+					Default: [],
+					Override: []
 				}
 			};
-			let uniqueExtensions = _.unique<string>(fileNames.map(f => _.trimLeft(path.extname(f))));
-			uniqueExtensions.forEach((ext) => {
-				let type = VsixWriter.CONTENT_TYPE_MAP[ext];
-				if (!type) {
-					type = "application/octet-stream";
-				}
-				contentTypes.Types.Default.push({
-					$: {
-						Extension: ext,
-						ContentType: type
+			let windows = /^win/.test(process.platform);
+			let contentTypePromise;
+			if (windows) {
+				// On windows, check HKCR to get the content type of the file based on the extension
+				let contentTypePromises: Q.Promise<any>[] = [];
+				let extensionlessFiles = [];
+				let uniqueExtensions = _.unique<string>(fileNames.map((f) => {
+					let extName = path.extname(f);
+					if (!extName && !overrides[f]) {
+						log.warn("File %s does not have an extension, and its content-type is not declared. Defaulting to application/octet-stream.", path.resolve(f));
+					}
+					return extName;
+				}));
+				uniqueExtensions.forEach((ext) => {
+					if (!ext) {
+						return;
+					}
+					if (ext === ".vsomanifest") {
+						contentTypes.Types.Default.push({
+							$: {
+								Extension: ext,
+								ContentType: "application/json"
+							}
+						});
+						return;
+					}
+					let hkcrKey = new winreg({
+						hive: winreg.HKCR,
+						key: "\\" + ext.toLowerCase()
+					});
+					let regPromise = Q.ninvoke(hkcrKey, "get", "Content Type").then((type: WinregValue) => {
+						log.debug("Found content type for %s: %s.", ext, type.value);
+						let contentType = "application/octet-stream";
+						if (type) {
+							contentType = type.value;
+						}
+						return contentType;
+					}).catch((err) => {
+						log.warn("Could not determine content type for file or extension %s. Defaulting to application/octet-stream. To override this, add a contentType property to this file entry in the manifest.", ext);
+						return "application/octet-stream";
+					}).then((contentType) => {
+						contentTypes.Types.Default.push({
+							$: {
+								Extension: ext,
+								ContentType: contentType
+							}
+						});
+					});
+					contentTypePromises.push(regPromise);
+				});
+				contentTypePromise = Q.all(contentTypePromises);
+			} else {
+				// If not on windows, run the file --mime-type command to use magic to get the content type.
+				// If the file has an extension, rev a hit counter for that extension and the extension
+				// If there is no extension, create an <Override> element for the element
+				// For each file with an extension that doesn't match the most common type for that extension
+				// (tracked by the hit counter), create an <Override> element.
+				// Finally, add a <Default> element for each extension mapped to the most common type.
+				
+				let contentTypePromises: Q.Promise<any>[] = [];
+				let extTypeCounter: {[ext: string]: {[type: string]: string[]}} = {};
+				fileNames.forEach((fileName) => {
+					let extension = path.extname(fileName);
+					let mimePromise = Q.Promise((resolve, reject, notify) => {
+						let child = childProcess.exec("file --mime-type " + fileName, (err, stdout, stderr) => {
+							let magicMime = stdout.toString("utf8");
+							try {
+								if (err) {
+									reject(err);
+								}
+								if (magicMime) {
+									if (extension) {
+										if (!extTypeCounter[extension]) {
+											extTypeCounter[extension] = {};
+										}
+										let hitCounters = extTypeCounter[extension];
+										if (!hitCounters[magicMime]) {
+											hitCounters[magicMime] = [];
+										} 
+										hitCounters[magicMime].push(fileName);
+									} else {
+										if (!overrides[fileName]) {
+											overrides[fileName] = magicMime;
+										}
+									}
+								} else {
+									if (stderr) {
+										reject(stderr.toString("utf8"));
+									} else {
+										reject("No mime-type discovered for " + fileName);
+									}
+								}
+							} catch (e) {
+								reject(e);
+							}
+						});
+					});
+					contentTypePromises.push(mimePromise);
+				});
+				contentTypePromise = Q.all(contentTypePromises).then(() => {
+					Object.keys(extTypeCounter).forEach((ext) => {
+						let hitCounts = extTypeCounter[ext];
+						let bestMatch = this.maxKey<string[]>(hitCounts, (i => i.length));
+						Object.keys(hitCounts).forEach((type) => {
+							if (type === bestMatch) {
+								return;
+							}
+							hitCounts[type].forEach((fileName) => {
+								overrides[fileName] = type;
+							});
+						});
+						contentTypes.Types.Default.push({
+							$: {
+								Extension: ext,
+								ContentType: bestMatch
+							}
+						});
+					});
+				});
+			}
+			return contentTypePromise.then(() => {
+				Object.keys(overrides).forEach((partName) => {
+					contentTypes.Types.Override.push({
+						$: {
+							ContentType: overrides[partName],
+							PartName: partName
+						}
+					})
+				});
+				let builder = new xml.Builder({
+					indent: "    ",
+					newline: require("os").EOL,
+					pretty: true,
+					xmldec: {
+						encoding: "utf-8",
+						standalone: null,
+						version: "1.0"
 					}
 				});
+				return builder.buildObject(contentTypes);
 			});
-			let builder = new xml.Builder({
-				indent: "    ",
-				newline: require("os").EOL,
-				pretty: true,
-				xmldec: {
-					encoding: "utf-8",
-					standalone: null,
-					version: "1.0"
+		}
+		
+		private maxKey<T>(obj: {[key: string]: T}, func: (input: T) => number): string {
+			let maxProp;
+			for (let prop in obj) {
+				if (!maxProp || func(obj[prop]) > func(obj[maxProp])) {
+					maxProp = prop;
 				}
-			});
-			return builder.buildObject(contentTypes);
+			}
+			return maxProp;
 		}
 	}
 	

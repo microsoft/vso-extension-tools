@@ -32,6 +32,7 @@ export function httpErr(obj): any {
 }
 
 export function errLog(arg) {
+	console.log(arg);
 	if (typeof arg === "string") {
 		log.error(arg);
 	} else if (typeof arg.toString === "function") {
