@@ -5,7 +5,8 @@
 		"noImplicitAny": false,
 		"declaration": false,
 		"removeComments": true,
-		"outDir": "bin/"
+		"outDir": "bin/",
+		"newLine": "LF"
 	},
 	"files": [
 		"src/scripts/app.ts",

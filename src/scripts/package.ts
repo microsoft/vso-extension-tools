@@ -351,7 +351,9 @@ export module Package {
 		private static CONTENT_TYPE_MAP: {[key: string]: string} = {
 			".md": "text/markdown",
 			".pdf": "application/pdf",
-			".bat": "application/bat"
+			".bat": "application/bat",
+			".vsomanifest": "application/json",
+			".vsixmanifest": "text/xml"
 		};
 		
 		/**
@@ -530,17 +532,21 @@ export module Package {
 					if (!extName && !overrides[f]) {
 						log.warn("File %s does not have an extension, and its content-type is not declared. Defaulting to application/octet-stream.", path.resolve(f));
 					}
+					if (overrides[f]) {
+						// If there is an override for this file, ignore its extension
+						return "";
+					}
 					return extName;
 				}));
 				uniqueExtensions.forEach((ext) => {
 					if (!ext) {
 						return;
 					}
-					if (ext === ".vsomanifest") {
+					if (VsixWriter.CONTENT_TYPE_MAP[ext.toLowerCase()]) {
 						contentTypes.Types.Default.push({
 							$: {
 								Extension: ext,
-								ContentType: "application/json"
+								ContentType: VsixWriter.CONTENT_TYPE_MAP[ext.toLowerCase()]
 							}
 						});
 						return;
@@ -557,7 +563,7 @@ export module Package {
 						}
 						return contentType;
 					}).catch((err) => {
-						log.warn("Could not determine content type for file or extension %s. Defaulting to application/octet-stream. To override this, add a contentType property to this file entry in the manifest.", ext);
+						log.warn("Could not determine content type for extension %s. Defaulting to application/octet-stream. To override this, add a contentType property to this file entry in the manifest.", ext);
 						return "application/octet-stream";
 					}).then((contentType) => {
 						contentTypes.Types.Default.push({
@@ -582,13 +588,27 @@ export module Package {
 				let extTypeCounter: {[ext: string]: {[type: string]: string[]}} = {};
 				fileNames.forEach((fileName) => {
 					let extension = path.extname(fileName);
-					let mimePromise = Q.Promise((resolve, reject, notify) => {
-						let child = childProcess.exec("file --mime-type " + fileName, (err, stdout, stderr) => {
-							let magicMime = stdout.toString("utf8");
+					let mimePromise;
+					if (VsixWriter.CONTENT_TYPE_MAP[extension]) {
+						if (!extTypeCounter[extension]) {
+							extTypeCounter[extension] = {};
+						}
+						if (!extTypeCounter[extension][VsixWriter.CONTENT_TYPE_MAP[extension]]) {
+							extTypeCounter[extension][VsixWriter.CONTENT_TYPE_MAP[extension]] = [];
+						}
+						extTypeCounter[extension][VsixWriter.CONTENT_TYPE_MAP[extension]].push(fileName);
+						mimePromise = Q.resolve(null);
+						return;
+					}
+					mimePromise = Q.Promise((resolve, reject, notify) => {
+						let child = childProcess.exec("file --mime-type \"" + fileName + "\"", (err, stdout, stderr) => {
 							try {
 								if (err) {
 									reject(err);
 								}
+								let stdoutStr = stdout.toString("utf8");
+								let magicMime = _.trimRight(stdoutStr.substr(stdoutStr.lastIndexOf(" ") + 1), "\n");
+								log.debug("Magic mime type for %s is %s.", fileName, magicMime);
 								if (magicMime) {
 									if (extension) {
 										if (!extTypeCounter[extension]) {
@@ -608,9 +628,11 @@ export module Package {
 									if (stderr) {
 										reject(stderr.toString("utf8"));
 									} else {
-										reject("No mime-type discovered for " + fileName);
+										log.warn("Could not determine content type for %s. Defaulting to application/octet-stream. To override this, add a contentType property to this file entry in the manifest.", fileName);
+										overrides[fileName] = "application/octet-stream";
 									}
 								}
+								resolve(null);
 							} catch (e) {
 								reject(e);
 							}

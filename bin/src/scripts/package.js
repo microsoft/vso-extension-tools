@@ -405,17 +405,20 @@ var Package;
                     if (!extName && !overrides[f]) {
                         log.warn("File %s does not have an extension, and its content-type is not declared. Defaulting to application/octet-stream.", path.resolve(f));
                     }
+                    if (overrides[f]) {
+                        return "";
+                    }
                     return extName;
                 }));
                 uniqueExtensions.forEach(function (ext) {
                     if (!ext) {
                         return;
                     }
-                    if (ext === ".vsomanifest") {
+                    if (VsixWriter.CONTENT_TYPE_MAP[ext.toLowerCase()]) {
                         contentTypes.Types.Default.push({
                             $: {
                                 Extension: ext,
-                                ContentType: "application/json"
+                                ContentType: VsixWriter.CONTENT_TYPE_MAP[ext.toLowerCase()]
                             }
                         });
                         return;
@@ -432,7 +435,7 @@ var Package;
                         }
                         return contentType;
                     }).catch(function (err) {
-                        log.warn("Could not determine content type for file or extension %s. Defaulting to application/octet-stream. To override this, add a contentType property to this file entry in the manifest.", ext);
+                        log.warn("Could not determine content type for extension %s. Defaulting to application/octet-stream. To override this, add a contentType property to this file entry in the manifest.", ext);
                         return "application/octet-stream";
                     }).then(function (contentType) {
                         contentTypes.Types.Default.push({
@@ -451,13 +454,27 @@ var Package;
                 var extTypeCounter = {};
                 fileNames.forEach(function (fileName) {
                     var extension = path.extname(fileName);
-                    var mimePromise = Q.Promise(function (resolve, reject, notify) {
-                        var child = childProcess.exec("file --mime-type " + fileName, function (err, stdout, stderr) {
-                            var magicMime = stdout.toString("utf8");
+                    var mimePromise;
+                    if (VsixWriter.CONTENT_TYPE_MAP[extension]) {
+                        if (!extTypeCounter[extension]) {
+                            extTypeCounter[extension] = {};
+                        }
+                        if (!extTypeCounter[extension][VsixWriter.CONTENT_TYPE_MAP[extension]]) {
+                            extTypeCounter[extension][VsixWriter.CONTENT_TYPE_MAP[extension]] = [];
+                        }
+                        extTypeCounter[extension][VsixWriter.CONTENT_TYPE_MAP[extension]].push(fileName);
+                        mimePromise = Q.resolve(null);
+                        return;
+                    }
+                    mimePromise = Q.Promise(function (resolve, reject, notify) {
+                        var child = childProcess.exec("file --mime-type \"" + fileName + "\"", function (err, stdout, stderr) {
                             try {
                                 if (err) {
                                     reject(err);
                                 }
+                                var stdoutStr = stdout.toString("utf8");
+                                var magicMime = _.trimRight(stdoutStr.substr(stdoutStr.lastIndexOf(" ") + 1), "\n");
+                                log.debug("Magic mime type for %s is %s.", fileName, magicMime);
                                 if (magicMime) {
                                     if (extension) {
                                         if (!extTypeCounter[extension]) {
@@ -480,9 +497,11 @@ var Package;
                                         reject(stderr.toString("utf8"));
                                     }
                                     else {
-                                        reject("No mime-type discovered for " + fileName);
+                                        log.warn("Could not determine content type for %s. Defaulting to application/octet-stream. To override this, add a contentType property to this file entry in the manifest.", fileName);
+                                        overrides[fileName] = "application/octet-stream";
                                     }
                                 }
+                                resolve(null);
                             }
                             catch (e) {
                                 reject(e);
@@ -549,7 +568,9 @@ var Package;
         VsixWriter.CONTENT_TYPE_MAP = {
             ".md": "text/markdown",
             ".pdf": "application/pdf",
-            ".bat": "application/bat"
+            ".bat": "application/bat",
+            ".vsomanifest": "application/json",
+            ".vsixmanifest": "text/xml"
         };
         return VsixWriter;
     })();

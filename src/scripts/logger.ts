@@ -18,7 +18,7 @@ export function success(str: string, ...replacements: string[]): void {
 }
 
 export function warn(str: string, ...replacements: string[]): void {
-	doLog("warning", str, chalk.bgYellow, replacements);
+	doLog("warning", str, chalk.bgYellow.black, replacements);
 }
 
 export function info(str: string, level: number, ...replacements: string[]): void {

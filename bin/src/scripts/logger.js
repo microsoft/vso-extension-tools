@@ -26,7 +26,7 @@ function warn(str) {
     for (var _i = 1; _i < arguments.length; _i++) {
         replacements[_i - 1] = arguments[_i];
     }
-    doLog("warning", str, chalk.bgYellow, replacements);
+    doLog("warning", str, chalk.bgYellow.black, replacements);
 }
 exports.warn = warn;
 function info(str, level) {
