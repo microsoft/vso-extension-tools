@@ -129,8 +129,8 @@ export class ToM85 {
 			upgraded.extensionId = old.namespace.replace(/\./g, "-");
 		},
 		icon: (old: any, upgraded: any) => {
-			if (!upgraded.assets) {
-				upgraded.assets = [];
+			if (!upgraded.icons) {
+				upgraded.icons = {};
 			}
 			let iconPath = old.icon;
 			if (old.baseUri) {
@@ -145,10 +145,7 @@ export class ToM85 {
 			if (!fs.existsSync(fullIconPath)) {
 				log.warn("Warning: Could not find asset %s locally (we tried %s). Ensure that the path to this asset is correct relative to the location of this manifest before packaging.", old.icon, fullIconPath);
 			}
-			upgraded.assets.push({
-				type: "Microsoft.VSO.LargeIcon",
-				path: iconPath
-			});
+			upgraded.icons["wide"] = iconPath;
 		}
 	};
 	
