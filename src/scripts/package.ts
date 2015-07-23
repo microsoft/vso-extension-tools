@@ -182,14 +182,18 @@ export module Package {
 			});
 		}
 		
-		private handleDelimitedList(value: any, object: any, path: string, delimiter: string = ","): void {
+		private handleDelimitedList(value: any, object: any, path: string, delimiter: string = ",", uniq: boolean = true): void {
 			if (_.isString(value)) {
 				value = value.split(delimiter);
 				_.remove(value, v => v === "");
 			}
 			var items = _.get(object, path, "").split(delimiter);
 			_.remove(items, v => v === "");
-			_.set(object, path, _.uniq(items.concat(value)).join(delimiter));
+			let val = items.concat(value);
+			if (uniq) {
+				val = _.uniq(val);
+			} 
+			_.set(object, path, val.join(delimiter));
 		}
 		
 		private mergeKey(key: string, value: any, vsoManifest: any, vsixManifest: any, packageFiles: PackageFiles): void {
@@ -217,8 +221,13 @@ export module Package {
 					vsoManifest.description = value;
 					vsixManifest.PackageManifest.Metadata[0].Description[0]._ = value;
 					break;
-				case "versioncheckuri":
-					vsoManifest.versionCheckUri = value;
+				case "eventcallbacks":
+					if (_.isObject(value)) {
+						if (!vsoManifest.eventCallbacks) {
+							vsoManifest.eventCallbacks = {};
+						}
+						_.merge(vsoManifest.eventCallbacks, value);
+					}
 					break;
 				case "icons":
 					if (_.isString(value["default"])) {
@@ -283,7 +292,7 @@ export module Package {
 					break;
 				case "vsoflags":
 				case "galleryflags":
-					this.handleDelimitedList(value, vsixManifest, "PackageManifest.Metadata[0].GalleryFlags[0]");
+					this.handleDelimitedList(value, vsixManifest, "PackageManifest.Metadata[0].GalleryFlags[0]", " ");
 					break;
 				case "categories":
 					this.handleDelimitedList(value, vsixManifest, "PackageManifest.Metadata[0].Categories[0]");
@@ -328,6 +337,9 @@ export module Package {
 							}
 						});
 					}
+					break;
+				default:
+					vsoManifest[key] = value;
 					break;
 			}
 		}

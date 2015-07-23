@@ -113,15 +113,20 @@ var Package;
                 });
             });
         };
-        Merger.prototype.handleDelimitedList = function (value, object, path, delimiter) {
+        Merger.prototype.handleDelimitedList = function (value, object, path, delimiter, uniq) {
             if (delimiter === void 0) { delimiter = ","; }
+            if (uniq === void 0) { uniq = true; }
             if (_.isString(value)) {
                 value = value.split(delimiter);
                 _.remove(value, function (v) { return v === ""; });
             }
             var items = _.get(object, path, "").split(delimiter);
             _.remove(items, function (v) { return v === ""; });
-            _.set(object, path, _.uniq(items.concat(value)).join(delimiter));
+            var val = items.concat(value);
+            if (uniq) {
+                val = _.uniq(val);
+            }
+            _.set(object, path, val.join(delimiter));
         };
         Merger.prototype.mergeKey = function (key, value, vsoManifest, vsixManifest, packageFiles) {
             switch (key.toLowerCase()) {
@@ -144,8 +149,13 @@ var Package;
                     vsoManifest.description = value;
                     vsixManifest.PackageManifest.Metadata[0].Description[0]._ = value;
                     break;
-                case "versioncheckuri":
-                    vsoManifest.versionCheckUri = value;
+                case "eventcallbacks":
+                    if (_.isObject(value)) {
+                        if (!vsoManifest.eventCallbacks) {
+                            vsoManifest.eventCallbacks = {};
+                        }
+                        _.merge(vsoManifest.eventCallbacks, value);
+                    }
                     break;
                 case "icons":
                     if (_.isString(value["default"])) {
@@ -208,7 +218,7 @@ var Package;
                     break;
                 case "vsoflags":
                 case "galleryflags":
-                    this.handleDelimitedList(value, vsixManifest, "PackageManifest.Metadata[0].GalleryFlags[0]");
+                    this.handleDelimitedList(value, vsixManifest, "PackageManifest.Metadata[0].GalleryFlags[0]", " ");
                     break;
                 case "categories":
                     this.handleDelimitedList(value, vsixManifest, "PackageManifest.Metadata[0].Categories[0]");
@@ -253,6 +263,9 @@ var Package;
                             }
                         });
                     }
+                    break;
+                default:
+                    vsoManifest[key] = value;
                     break;
             }
         };
