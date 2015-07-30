@@ -30,6 +30,8 @@ var Package;
                 return _.unique(fileLists.reduce(function (a, b) { return a.concat(b); }));
             }).then(function (paths) {
                 if (paths.length > 0) {
+                    log.info("Merging %s manifests from the following paths: ", 2, paths.length.toString());
+                    paths.forEach(function (path) { return log.info(path, 3); });
                     return paths;
                 }
                 else {
@@ -77,7 +79,6 @@ var Package;
                     __meta_root: _this.mergeSettings.root,
                     scopes: [],
                     contributions: [],
-                    manifestVersion: 1.0
                 };
                 var packageFiles = {};
                 return Q.all(manifestPromises).then(function (partials) {
@@ -109,7 +110,23 @@ var Package;
                             _this.mergeKey(key, partial[key], vsoManifest, vsixManifest, packageFiles);
                         });
                     });
-                    return { vsoManifest: vsoManifest, vsixManifest: vsixManifest, files: packageFiles };
+                    var vsoDefaults = {
+                        manifestVersion: 1.0
+                    };
+                    Object.keys(vsoDefaults).forEach(function (d) {
+                        if (!vsoManifest[d]) {
+                            vsoManifest[d] = vsoDefaults[d];
+                        }
+                    });
+                    var validationResult = _this.validateVsixJson(vsixManifest);
+                    log.debug("VSO Manifest: " + JSON.stringify(vsoManifest, null, 4));
+                    log.debug("VSIX Manifest: " + JSON.stringify(vsixManifest, null, 4));
+                    if (validationResult.length === 0) {
+                        return { vsoManifest: vsoManifest, vsixManifest: vsixManifest, files: packageFiles };
+                    }
+                    else {
+                        throw "There were errors with your manifests. Address the following errors and re-run the tool.\n" + validationResult;
+                    }
                 });
             });
         };
@@ -128,22 +145,35 @@ var Package;
             }
             _.set(object, path, val.join(delimiter));
         };
+        Merger.prototype.singleValueProperty = function (obj, path, value, manifestKey) {
+            var existingValue = _.get(obj, path);
+            if (existingValue !== undefined) {
+                log.warn("Multiple values found for '%s'. Ignoring future occurrences and using the value '%s'.", manifestKey, JSON.stringify(existingValue, null, 4));
+                return false;
+            }
+            else {
+                _.set(obj, path, value);
+                return true;
+            }
+        };
         Merger.prototype.mergeKey = function (key, value, vsoManifest, vsixManifest, packageFiles) {
             switch (key.toLowerCase()) {
                 case "namespace":
                 case "extensionid":
                 case "id":
                     if (_.isString(value)) {
-                        vsixManifest.PackageManifest.Metadata[0].Identity[0].$.Id = value.replace(/\./g, "-");
+                        this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].Identity[0].$.Id", value.replace(/\./g, "-"), "namespace/extensionId/id");
                     }
                     break;
                 case "version":
-                    vsoManifest.version = value;
-                    vsixManifest.PackageManifest.Metadata[0].Identity[0].$.Version = value;
+                    if (this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].Identity[0].$.Version", value, key)) {
+                        vsoManifest.version = value;
+                    }
                     break;
                 case "name":
-                    vsoManifest.name = value;
-                    vsixManifest.PackageManifest.Metadata[0].DisplayName[0] = value;
+                    if (this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].DisplayName[0]", value, key)) {
+                        vsoManifest.name = value;
+                    }
                     break;
                 case "description":
                     vsoManifest.description = value;
@@ -168,7 +198,7 @@ var Package;
                                 "Path": iconPath
                             }
                         });
-                        vsixManifest.PackageManifest.Metadata[0].Icon = [iconPath];
+                        this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].Icon[0]", iconPath, "icons['default']");
                     }
                     if (_.isString(value["wide"])) {
                         var assets = _.get(vsixManifest, "PackageManifest.Assets[0].Asset");
@@ -189,7 +219,7 @@ var Package;
                     if (!version) {
                         version = 1;
                     }
-                    vsoManifest.manifestVersion = version;
+                    this.singleValueProperty(vsoManifest, "manifestVersion", version, key);
                     break;
                 case "public":
                     if (typeof value === "boolean") {
@@ -199,14 +229,13 @@ var Package;
                             flags.push("Public");
                         }
                         _.set(vsixManifest, "PackageManifest.Metadata[0].GalleryFlags[0]", _.uniq(flags).join(","));
-                        vsoManifest.__meta_public = value;
                     }
                     break;
                 case "publisher":
-                    vsixManifest.PackageManifest.Metadata[0].Identity[0].$.Publisher = value;
+                    this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].Identity[0].$.Publisher", value, key);
                     break;
                 case "releasenotes":
-                    vsixManifest.PackageManifest.Metadata[0].ReleaseNotes = [value];
+                    this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].ReleaseNotes[0]", value, key);
                     break;
                 case "scopes":
                     if (_.isArray(value)) {
@@ -224,7 +253,7 @@ var Package;
                     this.handleDelimitedList(value, vsixManifest, "PackageManifest.Metadata[0].Categories[0]");
                     break;
                 case "baseuri":
-                    vsoManifest.baseUri = value;
+                    this.singleValueProperty(vsoManifest, "baseUri", value, key);
                     break;
                 case "contributions":
                     if (_.isArray(value)) {
@@ -265,8 +294,84 @@ var Package;
                     }
                     break;
                 default:
-                    vsoManifest[key] = value;
+                    if (key.substr(0, 2) !== "__") {
+                        this.singleValueProperty(vsoManifest, key, value, key);
+                    }
                     break;
+            }
+        };
+        Merger.prototype.validateVsixJson = function (vsixManifest) {
+            return Object.keys(Merger.vsixValidators).map(function (path) { return Merger.vsixValidators[path](_.get(vsixManifest, path)); }).filter(function (r) { return !!r; });
+        };
+        Merger.vsixValidators = {
+            "PackageManifest.Metadata[0].Identity[0].$.Id": function (value) {
+                if (/^[A-z0-9_-]+$/.test(value)) {
+                    return null;
+                }
+                else {
+                    return "'extensionId' may only include letters, numbers, underscores, and dashes.";
+                }
+            },
+            "PackageManifest.Metadata[0].Identity[0].$.Version": function (value) {
+                if (typeof value === "string" && value.length > 0) {
+                    return null;
+                }
+                else {
+                    return "'version' must be provided.";
+                }
+            },
+            "PackageManifest.Metadata[0].DisplayName[0]": function (value) {
+                if (typeof value === "string" && value.length > 0) {
+                    return null;
+                }
+                else {
+                    return "'name' must be provided.";
+                }
+            },
+            "PackageManifest.Assets[0].Asset": function (value) {
+                var usedAssetTypes = {};
+                if (_.isArray(value)) {
+                    for (var i = 0; i < value.length; ++i) {
+                        var asset = value[i].$;
+                        if (asset) {
+                            if (!asset.Path) {
+                                return "All 'files' must include a 'path'.";
+                            }
+                            if (asset.Type) {
+                                if (usedAssetTypes[asset.Type]) {
+                                    return "Cannot have multiple files with the same 'assetType'.\nFile1: " + usedAssetTypes[asset.Type] + ", File 2: " + asset.Path + " (asset type: " + asset.Type + ")";
+                                }
+                                else {
+                                    usedAssetTypes[asset.Type] = asset.Path;
+                                }
+                            }
+                        }
+                    }
+                }
+                return null;
+            },
+            "PackageManifest.Metadata[0].Identity[0].$.Publisher": function (value) {
+                if (typeof value === "string" && value.length > 0) {
+                    return null;
+                }
+                else {
+                    return "'publisher' must be provided.";
+                }
+            },
+            "PackageManifest.Metadata[0].Categories[0]": function (value) {
+                var categories = value.split(",");
+                var validCategories = [
+                    "Build and release",
+                    "Collaboration",
+                    "Customer support",
+                    "Planning",
+                    "Productivity",
+                    "Sync and integration",
+                    "Testing"
+                ];
+                _.remove(categories, function (c) { return !c; });
+                var badCategories = categories.filter(function (c) { return validCategories.indexOf(c) === -1; });
+                return badCategories.length ? "The following categories are not valid: " + badCategories.join(", ") + ". Valid categories are: " + validCategories.join(", ") + "." : null;
             }
         };
         return Merger;

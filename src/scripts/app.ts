@@ -18,7 +18,7 @@ module App {
 	let defaultSettings = {
 		package: {
 			root: process.cwd(),
-			manifestGlobs: ["**/vss-extension*.json"],
+			manifestGlobs: ["vss-extension.json"],
 			outputPath: "{auto}",
 			overrides: null
 		},
@@ -179,7 +179,7 @@ if (parseInt(version.split(".")[1], 10) < 12) {
 }
 
 program
-	.version("0.4.6")
+	.version("0.4.7")
 	.option("--fiddler", "Use the fiddler proxy for REST API calls.")
 	.option("--nologo", "Suppress printing the VSET logo.")
 	.option("--debug", "Print debug log messages.")
@@ -190,9 +190,9 @@ program
 	.command("package")
 	.description("Create a vsix package for an extension.")
 	.option("-r, --root <root>", "Specify the root for files in your vsix package. [.]")
-	.option("-m, --manifest-glob <glob>", "Specify the pattern for manifest files to join. [**/*-manifest.json]")
-	.option("-o, --output-path <output>", "Specify the path and file name of the generated vsix. [..]")
-	.option("-s, --settings <settings_path>", "Specify the path to a settings file")
+	.option("-m, --manifest-glob <glob>", "Specify the pattern for manifest files to join. [vss-extension.json]")
+	.option("-o, --output-path <output>", "Specify the path and file name of the generated vsix. [{auto}]")
+	.option("-s, --settings <settings_path>", "Specify the path to a settings file. [./settings.vset.json]")
 	.option("-i, --override <overrides_JSON>", "Specify a JSON string to override anything in the manifests.")
 	.action(App.createPackage);
 	
@@ -201,29 +201,29 @@ program
 	.description("Publish a VSIX package to your account. Generates the VSIX using [package_settings_path] unless --vsix is specified.")
 	.option("-v, --vsix <path_to_vsix>", "If specified, publishes this VSIX package instead of auto-packaging.")
 	.option("-r, --root <root>", "Specify the root for files in your vsix package. [.]")
-	.option("-m, --manifest-glob <manifest-glob>", "Specify the pattern for manifest files to join. [**/*-manifest.json]")
-	.option("-o, --output-path <output>", "Specify the path and file name of the generated vsix. [..]")
+	.option("-m, --manifest-glob <glob>", "Specify the pattern for manifest files to join. [vss-extension.json]")
+	.option("-o, --output-path <output>", "Specify the path and file name of the generated vsix. [{auto}]")
 	.option("-i, --override <overrides_JSON>", "Specify a JSON string to override anything in the manifests.")
-	.option("-g, --gallery-url <gallery_url>", "Specify the URL to the gallery.")
+	.option("-g, --gallery-url <gallery_url>", "Specify the URL to the gallery. [https://app.market.visualstudio.com]")
 	.option("-t, --token <token>", "Specify your personal access token.")
 	.option("-w, --share-with <share_with>", "Comma-separated list of accounts to share the extension with after it is published.")
-	.option("-s, --settings <settings_path>", "Specify the path to a settings file")
+	.option("-s, --settings <settings_path>", "Specify the path to a settings file. [./settings.vset.json]")
 	.action(App.publishVsix);
 	
 program
 	.command("create-publisher <name> <display_name> <description>")
 	.description("Create a publisher")
-	.option("-g, --gallery-url <gallery_url>", "Specify the URL to the gallery.")
+	.option("-g, --gallery-url <gallery_url>", "Specify the URL to the gallery. [https://app.market.visualstudio.com]")
 	.option("-t, --token <token>", "Specify your personal access token.")
-	.option("-s, --settings <settings_path>", "Specify the path to a settings file")
+	.option("-s, --settings <settings_path>", "Specify the path to a settings file. [./settings.vset.json]")
 	.action(App.createPublisher);
 	
 program
 	.command("delete-publisher <publisher_name>")
 	.description("Delete a publisher")
-	.option("-g, --gallery-url <gallery_url>", "Specify the URL to the gallery.")
+	.option("-g, --gallery-url <gallery_url>", "Specify the URL to the gallery. [https://app.market.visualstudio.com]")
 	.option("-t, --token <token>", "Specify your personal access token.")
-	.option("-s, --settings <settings_path>", "Specify the path to a settings file")
+	.option("-s, --settings <settings_path>", "Specify the path to a settings file. [./settings.vset.json]")
 	.action(App.deletePublisher);
 	
 program
@@ -233,9 +233,9 @@ program
 	.option("-p, --publisher <publisher>", "Specify the publisher of the extension to be shared.")
 	.option("-e, --extension <extension_id>", "Specify the name of the extension to be shared.")
 	.option("-v, --vsix <path_to_vsix>", "If specified, discovers the publisher & extension ID from the package.")
-	.option("-g, --gallery-url <gallery_url>", "Specify the URL to the gallery.")
+	.option("-g, --gallery-url <gallery_url>", "Specify the URL to the gallery. [https://app.market.visualstudio.com]")
 	.option("-t, --token <token>", "Specify your personal access token.")
-	.option("-s, --settings <settings_path>", "Specify the path to a settings file")
+	.option("-s, --settings <settings_path>", "Specify the path to a settings file. [./settings.vset.json]")
 	.action(App.shareExtension);
 	
 program
@@ -245,9 +245,9 @@ program
 	.option("-p, --publisher <publisher>", "Specify the publisher of the extension to be un-shared.")
 	.option("-e, --extension <extension_id>", "Specify the name of the extension to be un-shared.")
 	.option("-v, --vsix <path_to_vsix>", "If specified, discovers the publisher & extension ID from the package.")
-	.option("-g, --gallery-url <gallery_url>", "Specify the URL to the gallery.")
+	.option("-g, --gallery-url <gallery_url>", "Specify the URL to the gallery. [https://app.market.visualstudio.com]")
 	.option("-t, --token <token>", "Specify your personal access token.")
-	.option("-s, --settings <settings_path>", "Specify the path to a settings file")
+	.option("-s, --settings <settings_path>", "Specify the path to a settings file. [./settings.vset.json]")
 	.action(App.unshareExtension);
 	
 program
@@ -256,9 +256,9 @@ program
 	.option("-p, --publisher <publisher>", "Specify the publisher of the extension to be shared.")
 	.option("-e, --extension <extension_id>", "Specify the name of the extension to be shared.")
 	.option("-v, --vsix <path_to_vsix>", "If specified, discovers the publisher & extension ID from the package.")
-	.option("-g, --gallery-url <gallery_url>", "Specify the URL to the gallery.")
+	.option("-g, --gallery-url <gallery_url>", "Specify the URL to the gallery. [https://app.market.visualstudio.com]")
 	.option("-t, --token <token>", "Specify your personal access token.")
-	.option("-s, --settings <settings_path>", "Specify the path to a settings file")
+	.option("-s, --settings <settings_path>", "Specify the path to a settings file. [./settings.vset.json]")
 	.action(App.showExtension);
 	
 program

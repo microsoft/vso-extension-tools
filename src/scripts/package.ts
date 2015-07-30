@@ -71,6 +71,74 @@ export module Package {
 	export class Merger {
 		private mergeSettings: MergeSettings;
 		
+		private static vsixValidators: {[path: string]: (value) => string} = {
+			"PackageManifest.Metadata[0].Identity[0].$.Id": (value) => {
+				if (/^[A-z0-9_-]+$/.test(value)) {
+					return null;
+				} else {
+					return "'extensionId' may only include letters, numbers, underscores, and dashes.";
+				}
+			},
+			"PackageManifest.Metadata[0].Identity[0].$.Version": (value) => {
+				if (typeof value === "string" && value.length > 0) {
+					return null;
+				} else {
+					return "'version' must be provided.";
+				}
+			},
+			"PackageManifest.Metadata[0].DisplayName[0]": (value) => {
+				if (typeof value === "string" && value.length > 0) {
+					return null;
+				} else {
+					return "'name' must be provided.";
+				}
+			},
+			"PackageManifest.Assets[0].Asset": (value) => {
+				let usedAssetTypes = {};
+				if (_.isArray(value)) {
+					for (let i = 0; i < value.length; ++i) {
+						let asset = value[i].$;
+						if (asset) {
+							if (!asset.Path) {
+								return "All 'files' must include a 'path'.";
+							}
+							if (asset.Type) {
+								if (usedAssetTypes[asset.Type]) {
+									return "Cannot have multiple files with the same 'assetType'.\nFile1: " + usedAssetTypes[asset.Type] + ", File 2: " + asset.Path + " (asset type: " + asset.Type + ")";
+								} else {
+									usedAssetTypes[asset.Type] = asset.Path;
+								}
+							}
+						}
+					}
+				}
+				
+				return null;
+			},
+			"PackageManifest.Metadata[0].Identity[0].$.Publisher": (value) => {
+				if (typeof value === "string" && value.length > 0) {
+					return null;
+				} else {
+					return "'publisher' must be provided.";
+				}
+			},
+			"PackageManifest.Metadata[0].Categories[0]": (value) => {
+				let categories = value.split(",");
+				let validCategories = [
+					"Build and release",
+					"Collaboration",
+					"Customer support",
+					"Planning",
+					"Productivity",
+					"Sync and integration",
+					"Testing"
+				];
+				_.remove(categories, c => !c);
+				let badCategories = categories.filter(c => validCategories.indexOf(c) === -1);
+				return badCategories.length ? "The following categories are not valid: " + badCategories.join(", ") + ". Valid categories are: " + validCategories.join(", ") + "." : null;
+			}
+		}
+		
 		/**
 		 * constructor
 		 * @param string Root path for locating candidate manifests
@@ -90,6 +158,8 @@ export module Package {
 				return _.unique(fileLists.reduce((a, b) => { return a.concat(b); }));
 			}).then((paths) => {
 				if (paths.length > 0) {
+					log.info("Merging %s manifests from the following paths: ", 2, paths.length.toString());
+					paths.forEach(path => log.info(path, 3));
 					return paths;
 				} else {
 					throw "No manifests found from the following glob patterns: \n" + globPatterns.join("\n");
@@ -142,7 +212,6 @@ export module Package {
 					__meta_root: this.mergeSettings.root,
 					scopes: [],
 					contributions: [],
-					manifestVersion: 1.0
 				};
 				let packageFiles: PackageFiles = {};
 				return Q.all(manifestPromises).then((partials: any[]) => {
@@ -177,7 +246,23 @@ export module Package {
 							this.mergeKey(key, partial[key], vsoManifest, vsixManifest, packageFiles);
 						});
 					});
-					return <VsixComponents>{vsoManifest: vsoManifest, vsixManifest: vsixManifest, files: packageFiles};
+					// Merge in the single-value defaults if not provided.
+					let vsoDefaults = {
+						manifestVersion: 1.0
+					};
+					Object.keys(vsoDefaults).forEach((d) => {
+						if (!vsoManifest[d]) {
+							vsoManifest[d] = vsoDefaults[d];
+						}
+					});
+					let validationResult = this.validateVsixJson(vsixManifest);
+					log.debug("VSO Manifest: " + JSON.stringify(vsoManifest, null, 4));
+					log.debug("VSIX Manifest: " + JSON.stringify(vsixManifest, null, 4)); 
+					if (validationResult.length === 0) {
+						return <VsixComponents>{vsoManifest: vsoManifest, vsixManifest: vsixManifest, files: packageFiles};
+					} else {
+						throw "There were errors with your manifests. Address the following errors and re-run the tool.\n" + validationResult;
+					}
 				});
 			});
 		}
@@ -196,28 +281,37 @@ export module Package {
 			_.set(object, path, val.join(delimiter));
 		}
 		
+		private singleValueProperty(obj: any, path: string, value: any, manifestKey: string): boolean {
+			let existingValue = _.get(obj, path); 
+			if (existingValue !== undefined) {
+				log.warn("Multiple values found for '%s'. Ignoring future occurrences and using the value '%s'.", manifestKey, JSON.stringify(existingValue, null, 4));
+				return false;
+			} else {
+				_.set(obj, path, value);
+				return true;
+			}
+		}
+		
 		private mergeKey(key: string, value: any, vsoManifest: any, vsixManifest: any, packageFiles: PackageFiles): void {
 			switch(key.toLowerCase()) {
 				case "namespace":
 				case "extensionid":
 				case "id":
-					// Assert string value
 					if (_.isString(value)) {
-						vsixManifest.PackageManifest.Metadata[0].Identity[0].$.Id = value.replace(/\./g, "-");
+						this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].Identity[0].$.Id", value.replace(/\./g, "-"), "namespace/extensionId/id");
 					}
 					break;
 				case "version":
-					// Assert string value
-					vsoManifest.version = value;
-					vsixManifest.PackageManifest.Metadata[0].Identity[0].$.Version = value;
+					if (this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].Identity[0].$.Version", value, key)) {
+						vsoManifest.version = value;
+					}
 					break;
 				case "name":
-					// Assert string value
-					vsoManifest.name = value;
-					vsixManifest.PackageManifest.Metadata[0].DisplayName[0] = value;
+					if (this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].DisplayName[0]", value, key)) {
+						vsoManifest.name = value;
+					}
 					break;
 				case "description":
-					// Assert string value
 					vsoManifest.description = value;
 					vsixManifest.PackageManifest.Metadata[0].Description[0]._ = value;
 					break;
@@ -242,7 +336,7 @@ export module Package {
 						});
 						
 						// Default icon is also the package icon
-						vsixManifest.PackageManifest.Metadata[0].Icon = [iconPath];
+						this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].Icon[0]", iconPath, "icons['default']");
 					}
 					if (_.isString(value["wide"])) {
 						let assets = _.get<any>(vsixManifest, "PackageManifest.Assets[0].Asset");
@@ -263,7 +357,7 @@ export module Package {
 					if (!version) {
 						version = 1;
 					}
-					vsoManifest.manifestVersion = version;
+					this.singleValueProperty(vsoManifest, "manifestVersion", version, key);
 					break;
 				case "public": 
 					if (typeof value === "boolean") {
@@ -273,14 +367,13 @@ export module Package {
 							flags.push("Public");
 						}
 						_.set(vsixManifest, "PackageManifest.Metadata[0].GalleryFlags[0]", _.uniq(flags).join(","));
-						vsoManifest.__meta_public = value;
 					}
 					break;
 				case "publisher":
-					vsixManifest.PackageManifest.Metadata[0].Identity[0].$.Publisher = value;
+					this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].Identity[0].$.Publisher", value, key);
 					break;
 				case "releasenotes":
-					vsixManifest.PackageManifest.Metadata[0].ReleaseNotes = [value];
+					this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].ReleaseNotes[0]", value, key);
 					break;
 				case "scopes":
 					if (_.isArray(value)) {
@@ -292,14 +385,14 @@ export module Package {
 					break;
 				case "vsoflags":
 				case "galleryflags":
+					// Gallery Flags are space-separated since it's a Flags enum.
 					this.handleDelimitedList(value, vsixManifest, "PackageManifest.Metadata[0].GalleryFlags[0]", " ");
 					break;
 				case "categories":
 					this.handleDelimitedList(value, vsixManifest, "PackageManifest.Metadata[0].Categories[0]");
 					break;
 				case "baseuri":
-					// Assert string value
-					vsoManifest.baseUri = value;
+					this.singleValueProperty(vsoManifest, "baseUri", value, key);
 					break;
 				case "contributions":
 					if (_.isArray(value)) {
@@ -339,9 +432,15 @@ export module Package {
 					}
 					break;
 				default:
-					vsoManifest[key] = value;
+					if (key.substr(0, 2) !== "__") {
+						this.singleValueProperty(vsoManifest, key, value, key);
+					}
 					break;
 			}
+		}
+		
+		private validateVsixJson(vsixManifest: any): string[] {
+			return Object.keys(Merger.vsixValidators).map(path => Merger.vsixValidators[path](_.get(vsixManifest, path))).filter(r => !!r);
 		}
 	}
 	

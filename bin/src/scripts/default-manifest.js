@@ -10,16 +10,11 @@ exports.defaultManifest = {
                 "Identity": [
                     {
                         "$": {
-                            "Id": "",
-                            "Version": "",
-                            "Language": "en-US",
-                            "Publisher": ""
+                            "Language": "en-US"
                         }
                     }
                 ],
-                "DisplayName": [
-                    ""
-                ],
+                "DisplayName": [],
                 "Description": [
                     {
                         "$": {

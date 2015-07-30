@@ -22,17 +22,18 @@ export function httpErr(obj): any {
 				throw errorBodyObj;
 			}
 		}
-	}
-	let message = errorBodyObj.message;
-	if (message) {
-		throw message;
-	} else {
-		throw errorBodyObj;
-	}
+		if (errorBodyObj.message) {
+			let message = errorBodyObj.message;
+			if (message) {
+				throw message;
+			} else {
+				throw errorBodyObj;
+			}
+		}
+	}	
 }
 
 export function errLog(arg) {
-	console.log(arg);
 	if (typeof arg === "string") {
 		log.error(arg);
 	} else if (typeof arg.toString === "function") {

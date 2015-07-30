@@ -23,18 +23,19 @@ function httpErr(obj) {
                 throw errorBodyObj;
             }
         }
-    }
-    var message = errorBodyObj.message;
-    if (message) {
-        throw message;
-    }
-    else {
-        throw errorBodyObj;
+        if (errorBodyObj.message) {
+            var message = errorBodyObj.message;
+            if (message) {
+                throw message;
+            }
+            else {
+                throw errorBodyObj;
+            }
+        }
     }
 }
 exports.httpErr = httpErr;
 function errLog(arg) {
-    console.log(arg);
     if (typeof arg === "string") {
         log.error(arg);
     }
