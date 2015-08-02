@@ -86,6 +86,10 @@ export enum ExtensionQueryFilterType {
      * The catgeory is unlike other filters. It is AND'd with the other filters instead of being a seperate query.
      */
     Category = 5,
+    /**
+     * Certain contribution types may be indexed to allow for query by type. User defined types can't be indexed at the moment.
+     */
+    ContributionType = 6,
 }
 
 export enum ExtensionQueryFlags {
@@ -109,6 +113,18 @@ export enum ExtensionQueryFlags {
      * Include the details about which accounts the extension has been shared with if the extesion is a private extension.
      */
     IncludeSharedAccounts = 8,
+    /**
+     * Include properties associated with versions of the extension
+     */
+    IncludeVersionProperties = 16,
+    /**
+     * Excluding non-validated extensions will remove any extension versions that either are in the process of being validated or have failed validation.
+     */
+    ExcludeNonValidated = 32,
+    /**
+     * AllAttributes is designed to be a mask that defines all sub-elements of the extension should be returned.
+     */
+    AllAttributes = 31,
 }
 
 /**
@@ -123,9 +139,23 @@ export interface ExtensionQueryResult {
 
 export interface ExtensionVersion {
     files: ExtensionFile[];
+    flags: ExtensionVersionFlags;
     lastUpdated: Date;
+    properties: { key: string; value: string }[];
+    validationResultMessage: string;
     version: string;
     versionDescription: string;
+}
+
+export enum ExtensionVersionFlags {
+    /**
+     * No flags exist for this version.
+     */
+    None = 0,
+    /**
+     * The Validated flag for a version means the extension version has passed validation and can be used..
+     */
+    Validated = 1,
 }
 
 /**
@@ -179,17 +209,17 @@ export enum PublishedExtensionFlags {
      */
     Disabled = 1,
     /**
-     * BuiltIn Extension are available to all Tenants. An explicit registration is not required. This attribute is reserved and can't be supplied by Extension Developers.
+     * BuiltIn Extension are available to all Tenants. An explicit registration is not required. This attribute is reserved and can't be supplied by Extension Developers.  BuiltIn extensions are by definition Public. There is no need to set the public flag for extensions marked BuiltIn.
      */
     BuiltIn = 2,
     /**
-     * This extension has been validated by the service. The extension meets the requirements specified. This attribute is reserved and can't be supplied by the Extension Developers. Validation is a process that ensures that all contributions are well formed. They meet the requirements defined by the contribution type they are extending. Note this attribute will be updated asynchronously as the extension is validated by the developer of the contribution type. There will be restricted access to the extension while this process is performed.  @TODO: Link to extension verification requirements.
+     * This extension has been validated by the service. The extension meets the requirements specified. This attribute is reserved and can't be supplied by the Extension Developers. Validation is a process that ensures that all contributions are well formed. They meet the requirements defined by the contribution type they are extending. Note this attribute will be updated asynchronously as the extension is validated by the developer of the contribution type. There will be restricted access to the extension while this process is performed.
      */
     Validated = 4,
     /**
-     * This extension registration is private, making its visibilty limited to the set of defined users and tenants defined by the developer.
+     * This extension registration is public, making its visibilty open to the public. This means all tenants have the ability to install this extension. Without this flag the extension will be private and will need to be shared with the tenants that can install it.
      */
-    Private = 256,
+    Public = 256,
     /**
      * This extension has multiple versions active at one time and version discovery should be done usig the defined "Version Discovery" protocol to determine the version available to a specific user or tenant.  @TODO: Link to Version Discovery Protocol.
      */
@@ -384,6 +414,7 @@ export var TypeInfo = {
             "private": 3,
             "id": 4,
             "category": 5,
+            "contributionType": 6,
         }
     },
     ExtensionQueryFlags: {
@@ -393,6 +424,9 @@ export var TypeInfo = {
             "includeFiles": 2,
             "includeCategoryAndTags": 4,
             "includeSharedAccounts": 8,
+            "includeVersionProperties": 16,
+            "excludeNonValidated": 32,
+            "allAttributes": 31,
         }
     },
     ExtensionQueryResult: {
@@ -400,6 +434,12 @@ export var TypeInfo = {
     },
     ExtensionVersion: {
         fields: <any>null
+    },
+    ExtensionVersionFlags: {
+        enumValues: {
+            "none": 0,
+            "validated": 1,
+        }
     },
     FilterCriteria: {
         fields: <any>null
@@ -420,7 +460,7 @@ export var TypeInfo = {
             "disabled": 1,
             "builtIn": 2,
             "validated": 4,
-            "private": 256,
+            "public": 256,
             "multiVersion": 512,
             "system": 1024,
             "serviceFlags": 1029,
@@ -521,6 +561,9 @@ TypeInfo.ExtensionVersion.fields = {
     files: {
         isArray: true,
         typeInfo: TypeInfo.ExtensionFile
+    },
+    flags: {
+        enumType: TypeInfo.ExtensionVersionFlags
     },
     lastUpdated: {
         isDate: true,

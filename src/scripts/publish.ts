@@ -15,10 +15,17 @@ import zip = require("jszip");
 
 export module Publish {
 	
+	interface CoreExtInfo {
+		id: string;
+		publisher: string;
+		version: string;
+		published?: boolean;
+	}
+	
 	class GalleryBase {
 		protected settings: settings.PublishSettings;
 		protected galleryClient: GalleryClient.GalleryHttpClient;
-		private vsixInfoPromise: Q.Promise<{id: string, publisher: string}>;
+		private vsixInfoPromise: Q.Promise<CoreExtInfo>;
 		
 		/**
 		 * Constructor
@@ -35,10 +42,10 @@ export module Publish {
 			this.galleryClient = RestClient.VssHttpClient.getClient(GalleryClient.GalleryHttpClient, this.settings.galleryUrl, this.settings.token);
 		}
 		
-		protected getExtensionIdAndPublisher(): Q.Promise<{id: string, publisher: string}> {
+		protected getExtInfo(): Q.Promise<CoreExtInfo> {
 			if (!this.vsixInfoPromise) {
 				if (this.settings.extensionId && this.settings.publisher) {
-					this.vsixInfoPromise = Q.resolve({id: this.settings.extensionId, publisher: this.settings.publisher});
+					this.vsixInfoPromise = Q.resolve({id: this.settings.extensionId, publisher: this.settings.publisher, version: null});
 				} else {
 					this.vsixInfoPromise = Q.Promise<JSZip>((resolve, reject, notify) => {
 						fs.readFile(this.settings.vsixPath, function(err, data) {
@@ -61,8 +68,9 @@ export module Publish {
 					}).then((vsixManifestAsJson) => {
 						let extensionId: string = _.get<string>(vsixManifestAsJson, "PackageManifest.Metadata[0].Identity[0].$.Id");
 						let extensionPublisher: string = _.get<string>(vsixManifestAsJson, "PackageManifest.Metadata[0].Identity[0].$.Publisher");
+						let extensionVersion: string = _.get<string>(vsixManifestAsJson, "PackageManifest.Metadata[0].Identity[0].$.Version");
 						if (extensionId && extensionPublisher) {
-							return {id: extensionId, publisher: extensionPublisher};
+							return {id: extensionId, publisher: extensionPublisher, version: extensionVersion};
 						} else {
 							throw "Could not locate both the extension id and publisher in vsix manfiest! Ensure your manifest includes both a namespace and a publisher property.";
 						}
@@ -126,7 +134,7 @@ export module Publish {
 		}
 		
 		public shareWith(accounts: string[]): Q.Promise<any> {
-			return this.getExtensionIdAndPublisher().then((extInfo) => {
+			return this.getExtInfo().then((extInfo) => {
 				return Q.all(accounts.map((account) => {
 					return this.galleryClient.shareExtension(extInfo.publisher, extInfo.id, account).catch(errHandler.httpErr);
 				}));
@@ -134,7 +142,7 @@ export module Publish {
 		}
 		
 		public unshareWith(accounts: string[]): Q.Promise<any> {
-			return this.getExtensionIdAndPublisher().then((extInfo) => {
+			return this.getExtInfo().then((extInfo) => {
 				return Q.all(accounts.map((account) => {
 					return this.galleryClient.unshareExtension(extInfo.publisher, extInfo.id, account).catch(errHandler.httpErr);
 				}));
@@ -154,7 +162,7 @@ export module Publish {
 		}
 		
 		public getExtensionInfo(): Q.Promise<GalleryContracts.PublishedExtension> {
-			return this.getExtensionIdAndPublisher().then((extInfo) => {
+			return this.getExtInfo().then((extInfo) => {
 				return this.galleryClient.getExtension(
 					extInfo.publisher, 
 					extInfo.id, 
@@ -172,6 +180,11 @@ export module Publish {
 	
 	export class PackagePublisher extends GalleryBase {
 		
+		private static validationPending = "__validation_pending";
+		private static validated = "__validated";
+		private static validationInterval = 1000;
+		private static validationRetries = 50;
+		
 		/**
 		 * Constructor
 		 * @param PublishSettings settings
@@ -180,14 +193,15 @@ export module Publish {
 			super(settings);
 		}
 		
-		private checkVsixPublished(vsixPath: string): Q.Promise<{id: string, publisher: string}> {
-			return this.getExtensionIdAndPublisher().then((extInfo) => {
+		private checkVsixPublished(): Q.Promise<CoreExtInfo> {
+			return this.getExtInfo().then((extInfo) => {
 				return this.galleryClient.getExtension(extInfo.publisher, extInfo.id).then((ext) => {
 					if (ext) {
+						extInfo.published = true;
 						return extInfo;
 					}
-					return null;
-				}).catch<{id: string, publisher: string}>(() => {return null;});
+					return extInfo;
+				}).catch<{id: string, publisher: string, version: string}>(() => {return extInfo;});
 			});
 		}
 		
@@ -205,19 +219,82 @@ export module Publish {
 			
 			// Check if the app is already published. If so, call the update endpoint. Otherwise, create.
 			log.info("Checking if this extension is already published", 2);
-			return this.checkVsixPublished(this.settings.vsixPath).then((publishedExtInfo) => {
-				if (publishedExtInfo) {
+			return this.createOrUpdateExtension(extPackage).then((extInfo) => {
+				log.info("Waiting for server to validate extension package...", 1);
+				return this.waitForValidation(extInfo.version).then((result) => {
+					if (result === PackagePublisher.validated) {
+						return "success";
+					} else {
+						throw "Extension validation failed. Please address the following issues and retry publishing.\n" + result;
+					}
+				});
+			});
+		}
+		
+		private createOrUpdateExtension(extPackage: GalleryContracts.ExtensionPackage): Q.Promise<CoreExtInfo> {
+			return this.checkVsixPublished().then((extInfo) => {
+				if (extInfo && extInfo.published) {
 					log.info("It is, %s the extension", 3, chalk.cyan("update").toString());
-					return this.galleryClient.updateExtension(extPackage, publishedExtInfo.publisher, publishedExtInfo.id).then(() => {
-						
-					}).catch(errHandler.httpErr);
+					return this.galleryClient.updateExtension(extPackage, extInfo.publisher, extInfo.id).catch(errHandler.httpErr).then((publishedExtension) => {
+						return extInfo;
+					});
 				} else {
 					log.info("It isn't, %s a new extension.", 3, chalk.cyan("create").toString());
-					return this.galleryClient.createExtension(extPackage).then(() => {
-						
-					}).catch<any>(errHandler.httpErr);
+					return this.galleryClient.createExtension(extPackage).catch(errHandler.httpErr).then((publishedExtension) => {
+						return extInfo;
+					});
 				}
 			});
+		}
+		
+		public waitForValidation(version?: string, interval = PackagePublisher.validationInterval, retries = PackagePublisher.validationRetries): Q.Promise<string> {
+			if (retries === 0) {
+				throw "Validation timed out. There may be a problem validating your extension. Please try again later.";
+			} else if (retries === 25) {
+				log.info("This is taking longer than usual. Hold tight...", 2);
+			}
+			log.debug("Polling for validation (%s retries remaining).", retries.toString());
+			return Q.delay(this.getValidationStatus(version), interval).then((status) => {
+				log.debug("--Retrieved validation status: %s", status);
+				if (status === PackagePublisher.validationPending) {
+					return this.waitForValidation(version, interval, retries - 1);
+				} else {
+					return status;
+				}
+			});
+		}
+		
+		public getValidationStatus(version?: string): Q.Promise<string> {
+			return this.getExtInfo().then((extInfo) => {
+				return this.galleryClient.getExtension(extInfo.publisher, extInfo.id, extInfo.version, GalleryContracts.ExtensionQueryFlags.IncludeVersions).then((ext) => {
+					if (!ext || ext.versions.length === 0) {
+						throw "Extension not published.";
+					}
+					let extVersion = ext.versions[0];
+					if (version) {
+						extVersion = this.getVersionedExtension(ext, version);
+					}
+					// If there is a validationResultMessage, validation failed and this is the error
+					// If the validated flag is missing and there is no validationResultMessage, validation is pending
+					// If the validated flag is present and there is no validationResultMessage, the extension is validated.
+					if (extVersion.validationResultMessage) {
+						return extVersion.validationResultMessage;
+					} else if ((extVersion.flags & GalleryContracts.ExtensionVersionFlags.Validated) === 0) {
+						return PackagePublisher.validationPending;
+					} else {
+						return PackagePublisher.validated;
+					}
+				});
+			});
+		}
+		
+		private getVersionedExtension(extension: GalleryContracts.PublishedExtension, version: string): GalleryContracts.ExtensionVersion {
+			let matches = extension.versions.filter(ev => ev.version === version);
+			if (matches.length > 0) {
+				return matches[0];
+			} else {
+				return null;
+			}
 		}
 	}
 }

@@ -17,6 +17,7 @@
     ExtensionQueryFilterType[ExtensionQueryFilterType["Private"] = 3] = "Private";
     ExtensionQueryFilterType[ExtensionQueryFilterType["Id"] = 4] = "Id";
     ExtensionQueryFilterType[ExtensionQueryFilterType["Category"] = 5] = "Category";
+    ExtensionQueryFilterType[ExtensionQueryFilterType["ContributionType"] = 6] = "ContributionType";
 })(exports.ExtensionQueryFilterType || (exports.ExtensionQueryFilterType = {}));
 var ExtensionQueryFilterType = exports.ExtensionQueryFilterType;
 (function (ExtensionQueryFlags) {
@@ -25,8 +26,16 @@ var ExtensionQueryFilterType = exports.ExtensionQueryFilterType;
     ExtensionQueryFlags[ExtensionQueryFlags["IncludeFiles"] = 2] = "IncludeFiles";
     ExtensionQueryFlags[ExtensionQueryFlags["IncludeCategoryAndTags"] = 4] = "IncludeCategoryAndTags";
     ExtensionQueryFlags[ExtensionQueryFlags["IncludeSharedAccounts"] = 8] = "IncludeSharedAccounts";
+    ExtensionQueryFlags[ExtensionQueryFlags["IncludeVersionProperties"] = 16] = "IncludeVersionProperties";
+    ExtensionQueryFlags[ExtensionQueryFlags["ExcludeNonValidated"] = 32] = "ExcludeNonValidated";
+    ExtensionQueryFlags[ExtensionQueryFlags["AllAttributes"] = 31] = "AllAttributes";
 })(exports.ExtensionQueryFlags || (exports.ExtensionQueryFlags = {}));
 var ExtensionQueryFlags = exports.ExtensionQueryFlags;
+(function (ExtensionVersionFlags) {
+    ExtensionVersionFlags[ExtensionVersionFlags["None"] = 0] = "None";
+    ExtensionVersionFlags[ExtensionVersionFlags["Validated"] = 1] = "Validated";
+})(exports.ExtensionVersionFlags || (exports.ExtensionVersionFlags = {}));
+var ExtensionVersionFlags = exports.ExtensionVersionFlags;
 (function (PagingDirection) {
     PagingDirection[PagingDirection["Backward"] = 1] = "Backward";
     PagingDirection[PagingDirection["Forward"] = 2] = "Forward";
@@ -38,7 +47,7 @@ var PagingDirection = exports.PagingDirection;
     PublishedExtensionFlags[PublishedExtensionFlags["Disabled"] = 1] = "Disabled";
     PublishedExtensionFlags[PublishedExtensionFlags["BuiltIn"] = 2] = "BuiltIn";
     PublishedExtensionFlags[PublishedExtensionFlags["Validated"] = 4] = "Validated";
-    PublishedExtensionFlags[PublishedExtensionFlags["Private"] = 256] = "Private";
+    PublishedExtensionFlags[PublishedExtensionFlags["Public"] = 256] = "Public";
     PublishedExtensionFlags[PublishedExtensionFlags["MultiVersion"] = 512] = "MultiVersion";
     PublishedExtensionFlags[PublishedExtensionFlags["System"] = 1024] = "System";
     PublishedExtensionFlags[PublishedExtensionFlags["ServiceFlags"] = 1029] = "ServiceFlags";
@@ -100,6 +109,7 @@ exports.TypeInfo = {
             "private": 3,
             "id": 4,
             "category": 5,
+            "contributionType": 6,
         }
     },
     ExtensionQueryFlags: {
@@ -109,6 +119,9 @@ exports.TypeInfo = {
             "includeFiles": 2,
             "includeCategoryAndTags": 4,
             "includeSharedAccounts": 8,
+            "includeVersionProperties": 16,
+            "excludeNonValidated": 32,
+            "allAttributes": 31,
         }
     },
     ExtensionQueryResult: {
@@ -116,6 +129,12 @@ exports.TypeInfo = {
     },
     ExtensionVersion: {
         fields: null
+    },
+    ExtensionVersionFlags: {
+        enumValues: {
+            "none": 0,
+            "validated": 1,
+        }
     },
     FilterCriteria: {
         fields: null
@@ -136,7 +155,7 @@ exports.TypeInfo = {
             "disabled": 1,
             "builtIn": 2,
             "validated": 4,
-            "private": 256,
+            "public": 256,
             "multiVersion": 512,
             "system": 1024,
             "serviceFlags": 1029,
@@ -227,6 +246,9 @@ exports.TypeInfo.ExtensionVersion.fields = {
     files: {
         isArray: true,
         typeInfo: exports.TypeInfo.ExtensionFile
+    },
+    flags: {
+        enumType: exports.TypeInfo.ExtensionVersionFlags
     },
     lastUpdated: {
         isDate: true,
