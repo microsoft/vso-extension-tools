@@ -54,6 +54,7 @@ var Package;
         Merger.prototype.merge = function () {
             var _this = this;
             return this.gatherManifests(this.mergeSettings.manifestGlobs).then(function (files) {
+                var overridesProvided = false;
                 var manifestPromises = [];
                 files.forEach(function (file) {
                     manifestPromises.push(Q.nfcall(fs.readFile, file, "utf8").then(function (data) {
@@ -70,6 +71,7 @@ var Package;
                         }
                     }));
                     if (_this.mergeSettings.overrides) {
+                        overridesProvided = true;
                         manifestPromises.push(Q.resolve(_this.mergeSettings.overrides));
                     }
                 });
@@ -82,7 +84,7 @@ var Package;
                 };
                 var packageFiles = {};
                 return Q.all(manifestPromises).then(function (partials) {
-                    partials.forEach(function (partial) {
+                    partials.forEach(function (partial, partialIndex) {
                         if (_.isArray(partial["files"])) {
                             partial["files"].forEach(function (asset) {
                                 var keys = Object.keys(asset);
@@ -107,7 +109,7 @@ var Package;
                             });
                         }
                         Object.keys(partial).forEach(function (key) {
-                            _this.mergeKey(key, partial[key], vsoManifest, vsixManifest, packageFiles);
+                            _this.mergeKey(key, partial[key], vsoManifest, vsixManifest, packageFiles, partials.length - 1 === partialIndex && overridesProvided);
                         });
                     });
                     var vsoDefaults = {
@@ -145,9 +147,10 @@ var Package;
             }
             _.set(object, path, val.join(delimiter));
         };
-        Merger.prototype.singleValueProperty = function (obj, path, value, manifestKey) {
+        Merger.prototype.singleValueProperty = function (obj, path, value, manifestKey, override) {
+            if (override === void 0) { override = false; }
             var existingValue = _.get(obj, path);
-            if (existingValue !== undefined) {
+            if (!override && existingValue !== undefined) {
                 log.warn("Multiple values found for '%s'. Ignoring future occurrences and using the value '%s'.", manifestKey, JSON.stringify(existingValue, null, 4));
                 return false;
             }
@@ -156,22 +159,22 @@ var Package;
                 return true;
             }
         };
-        Merger.prototype.mergeKey = function (key, value, vsoManifest, vsixManifest, packageFiles) {
+        Merger.prototype.mergeKey = function (key, value, vsoManifest, vsixManifest, packageFiles, override) {
             switch (key.toLowerCase()) {
                 case "namespace":
                 case "extensionid":
                 case "id":
                     if (_.isString(value)) {
-                        this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].Identity[0].$.Id", value.replace(/\./g, "-"), "namespace/extensionId/id");
+                        this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].Identity[0].$.Id", value.replace(/\./g, "-", override), "namespace/extensionId/id");
                     }
                     break;
                 case "version":
-                    if (this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].Identity[0].$.Version", value, key)) {
+                    if (this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].Identity[0].$.Version", value, key), override) {
                         vsoManifest.version = value;
                     }
                     break;
                 case "name":
-                    if (this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].DisplayName[0]", value, key)) {
+                    if (this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].DisplayName[0]", value, key), override) {
                         vsoManifest.name = value;
                     }
                     break;
@@ -198,7 +201,7 @@ var Package;
                                 "Path": iconPath
                             }
                         });
-                        this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].Icon[0]", iconPath, "icons['default']");
+                        this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].Icon[0]", iconPath, "icons['default']", override);
                     }
                     if (_.isString(value["wide"])) {
                         var assets = _.get(vsixManifest, "PackageManifest.Assets[0].Asset");
@@ -219,7 +222,7 @@ var Package;
                     if (!version) {
                         version = 1;
                     }
-                    this.singleValueProperty(vsoManifest, "manifestVersion", version, key);
+                    this.singleValueProperty(vsoManifest, "manifestVersion", version, key, override);
                     break;
                 case "public":
                     if (typeof value === "boolean") {
@@ -232,10 +235,10 @@ var Package;
                     }
                     break;
                 case "publisher":
-                    this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].Identity[0].$.Publisher", value, key);
+                    this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].Identity[0].$.Publisher", value, key, override);
                     break;
                 case "releasenotes":
-                    this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].ReleaseNotes[0]", value, key);
+                    this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].ReleaseNotes[0]", value, key, override);
                     break;
                 case "scopes":
                     if (_.isArray(value)) {
@@ -253,7 +256,7 @@ var Package;
                     this.handleDelimitedList(value, vsixManifest, "PackageManifest.Metadata[0].Categories[0]");
                     break;
                 case "baseuri":
-                    this.singleValueProperty(vsoManifest, "baseUri", value, key);
+                    this.singleValueProperty(vsoManifest, "baseUri", value, key, override);
                     break;
                 case "contributions":
                     if (_.isArray(value)) {
@@ -295,7 +298,7 @@ var Package;
                     break;
                 default:
                     if (key.substr(0, 2) !== "__") {
-                        this.singleValueProperty(vsoManifest, key, value, key);
+                        this.singleValueProperty(vsoManifest, key, value, key, override);
                     }
                     break;
             }
@@ -359,6 +362,9 @@ var Package;
                 }
             },
             "PackageManifest.Metadata[0].Categories[0]": function (value) {
+                if (!value) {
+                    return null;
+                }
                 var categories = value.split(",");
                 var validCategories = [
                     "Build and release",
