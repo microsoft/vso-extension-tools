@@ -123,6 +123,9 @@ export module Package {
 				}
 			},
 			"PackageManifest.Metadata[0].Categories[0]": (value) => {
+				if (!value) {
+					return null;
+				}
 				let categories = value.split(",");
 				let validCategories = [
 					"Build and release",
@@ -185,6 +188,7 @@ export module Package {
 		 */
 		public merge(): Q.Promise<VsixComponents> {
 			return this.gatherManifests(this.mergeSettings.manifestGlobs).then((files: string[]) => {
+				let overridesProvided = false;
 				let manifestPromises: Q.Promise<any>[] = [];
 				files.forEach((file) => {
 					manifestPromises.push(Q.nfcall<any>(fs.readFile, file, "utf8").then((data) => {
@@ -202,6 +206,7 @@ export module Package {
 					
 					// Add the overrides if necessary
 					if (this.mergeSettings.overrides) {
+						overridesProvided = true;
 						manifestPromises.push(Q.resolve(this.mergeSettings.overrides));
 					}
 				});
@@ -215,7 +220,7 @@ export module Package {
 				};
 				let packageFiles: PackageFiles = {};
 				return Q.all(manifestPromises).then((partials: any[]) => {
-					partials.forEach((partial) => {
+					partials.forEach((partial, partialIndex) => {
 						// Transform asset paths to be relative to the root of all manifests, verify assets
 						if (_.isArray(partial["files"])) {
 							(<Array<FileDeclaration>>partial["files"]).forEach((asset) => {
@@ -243,7 +248,7 @@ export module Package {
 						
 						// Merge each key of each partial manifest into the joined manifests
 						Object.keys(partial).forEach((key) => {
-							this.mergeKey(key, partial[key], vsoManifest, vsixManifest, packageFiles);
+							this.mergeKey(key, partial[key], vsoManifest, vsixManifest, packageFiles, partials.length - 1 === partialIndex && overridesProvided);
 						});
 					});
 					// Merge in the single-value defaults if not provided.
@@ -281,9 +286,9 @@ export module Package {
 			_.set(object, path, val.join(delimiter));
 		}
 		
-		private singleValueProperty(obj: any, path: string, value: any, manifestKey: string): boolean {
+		private singleValueProperty(obj: any, path: string, value: any, manifestKey: string, override: boolean = false): boolean {
 			let existingValue = _.get(obj, path); 
-			if (existingValue !== undefined) {
+			if (!override && existingValue !== undefined) {
 				log.warn("Multiple values found for '%s'. Ignoring future occurrences and using the value '%s'.", manifestKey, JSON.stringify(existingValue, null, 4));
 				return false;
 			} else {
@@ -292,22 +297,22 @@ export module Package {
 			}
 		}
 		
-		private mergeKey(key: string, value: any, vsoManifest: any, vsixManifest: any, packageFiles: PackageFiles): void {
+		private mergeKey(key: string, value: any, vsoManifest: any, vsixManifest: any, packageFiles: PackageFiles, override: boolean): void {
 			switch(key.toLowerCase()) {
 				case "namespace":
 				case "extensionid":
 				case "id":
 					if (_.isString(value)) {
-						this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].Identity[0].$.Id", value.replace(/\./g, "-"), "namespace/extensionId/id");
+						this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].Identity[0].$.Id", value.replace(/\./g, "-", override), "namespace/extensionId/id");
 					}
 					break;
 				case "version":
-					if (this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].Identity[0].$.Version", value, key)) {
+					if (this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].Identity[0].$.Version", value, key), override) {
 						vsoManifest.version = value;
 					}
 					break;
 				case "name":
-					if (this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].DisplayName[0]", value, key)) {
+					if (this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].DisplayName[0]", value, key), override) {
 						vsoManifest.name = value;
 					}
 					break;
@@ -336,7 +341,7 @@ export module Package {
 						});
 						
 						// Default icon is also the package icon
-						this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].Icon[0]", iconPath, "icons['default']");
+						this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].Icon[0]", iconPath, "icons['default']", override);
 					}
 					if (_.isString(value["wide"])) {
 						let assets = _.get<any>(vsixManifest, "PackageManifest.Assets[0].Asset");
@@ -357,7 +362,7 @@ export module Package {
 					if (!version) {
 						version = 1;
 					}
-					this.singleValueProperty(vsoManifest, "manifestVersion", version, key);
+					this.singleValueProperty(vsoManifest, "manifestVersion", version, key, override);
 					break;
 				case "public": 
 					if (typeof value === "boolean") {
@@ -370,10 +375,10 @@ export module Package {
 					}
 					break;
 				case "publisher":
-					this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].Identity[0].$.Publisher", value, key);
+					this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].Identity[0].$.Publisher", value, key, override);
 					break;
 				case "releasenotes":
-					this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].ReleaseNotes[0]", value, key);
+					this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].ReleaseNotes[0]", value, key, override);
 					break;
 				case "scopes":
 					if (_.isArray(value)) {
@@ -392,7 +397,7 @@ export module Package {
 					this.handleDelimitedList(value, vsixManifest, "PackageManifest.Metadata[0].Categories[0]");
 					break;
 				case "baseuri":
-					this.singleValueProperty(vsoManifest, "baseUri", value, key);
+					this.singleValueProperty(vsoManifest, "baseUri", value, key, override);
 					break;
 				case "contributions":
 					if (_.isArray(value)) {
@@ -433,7 +438,7 @@ export module Package {
 					break;
 				default:
 					if (key.substr(0, 2) !== "__") {
-						this.singleValueProperty(vsoManifest, key, value, key);
+						this.singleValueProperty(vsoManifest, key, value, key, override);
 					}
 					break;
 			}
