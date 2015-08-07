@@ -108,6 +108,30 @@ var Package;
                                 icons[iconKind] = path.relative(_this.mergeSettings.root, absolutePath);
                             });
                         }
+                        var pathToFileDeclarations = function (fsPath, root) {
+                            var files = [];
+                            if (fs.lstatSync(fsPath).isDirectory()) {
+                                log.debug("Path '%s` is a directory. Adding all contained files (recursive).", fsPath);
+                                fs.readdirSync(fsPath).forEach(function (dirChildPath) {
+                                    log.debug("-- %s", dirChildPath);
+                                    files = files.concat(pathToFileDeclarations(path.join(fsPath, dirChildPath), root));
+                                });
+                            }
+                            else {
+                                var relativePath = path.relative(root, fsPath);
+                                files.push({ path: relativePath, partName: relativePath, auto: true });
+                            }
+                            return files;
+                        };
+                        if (_.isArray(partial["files"])) {
+                            for (var i = partial["files"].length - 1; i >= 0; --i) {
+                                var fileDecl = partial["files"][i];
+                                var fsPath = path.join(vsoManifest.__meta_root, fileDecl.path);
+                                if (fs.lstatSync(fsPath).isDirectory()) {
+                                    Array.prototype.splice.apply(partial["files"], [i, 1].concat(pathToFileDeclarations(fsPath, vsoManifest.__meta_root)));
+                                }
+                            }
+                        }
                         Object.keys(partial).forEach(function (key) {
                             _this.mergeKey(key, partial[key], vsoManifest, vsixManifest, packageFiles, partials.length - 1 === partialIndex && overridesProvided);
                         });
@@ -275,6 +299,14 @@ var Package;
                     if (_.isArray(value)) {
                         value.forEach(function (asset) {
                             var assetPath = asset.path.replace(/\\/g, "/");
+                            if (!asset.auto || !packageFiles[assetPath]) {
+                                packageFiles[assetPath] = {
+                                    partName: asset.partName || assetPath
+                                };
+                            }
+                            if (asset.contentType) {
+                                packageFiles[assetPath].contentType = asset.contentType;
+                            }
                             if (asset.assetType) {
                                 vsixManifest.PackageManifest.Assets[0].Asset.push({
                                     "$": {
@@ -283,12 +315,6 @@ var Package;
                                         "Path": assetPath
                                     }
                                 });
-                            }
-                            if (asset.contentType) {
-                                packageFiles[assetPath] = asset.contentType;
-                            }
-                            else {
-                                packageFiles[assetPath] = null;
                             }
                             if (asset.assetType === "Microsoft.VisualStudio.Services.Icons.Default") {
                                 vsixManifest.PackageManifest.Metadata[0].Icon = [assetPath];
@@ -456,9 +482,10 @@ var Package;
                 if (_.endsWith(file, VsixWriter.VSO_MANIFEST_FILENAME)) {
                     return;
                 }
-                var partName = file.replace(/\\/g, "/");
+                var partName = _this.files[file].partName.replace(/\\/g, "/");
+                var fsPath = path.join(root, file);
                 vsix.file(partName, fs.readFileSync(path.join(root, file)));
-                if (_this.files[file]) {
+                if (_this.files[file].contentType) {
                     overrides[partName] = _this.files[file];
                 }
             });
@@ -535,6 +562,9 @@ var Package;
                     return extName;
                 }));
                 uniqueExtensions.forEach(function (ext) {
+                    if (!ext.trim()) {
+                        return;
+                    }
                     if (!ext) {
                         return;
                     }
@@ -612,7 +642,7 @@ var Package;
                                     }
                                     else {
                                         if (!overrides[fileName]) {
-                                            overrides[fileName] = magicMime;
+                                            overrides[fileName].contentType = magicMime;
                                         }
                                     }
                                 }
@@ -622,7 +652,7 @@ var Package;
                                     }
                                     else {
                                         log.warn("Could not determine content type for %s. Defaulting to application/octet-stream. To override this, add a contentType property to this file entry in the manifest.", fileName);
-                                        overrides[fileName] = "application/octet-stream";
+                                        overrides[fileName].contentType = "application/octet-stream";
                                     }
                                 }
                                 resolve(null);
@@ -643,7 +673,7 @@ var Package;
                                 return;
                             }
                             hitCounts[type].forEach(function (fileName) {
-                                overrides[fileName] = type;
+                                overrides[fileName].contentType = type;
                             });
                         });
                         contentTypes.Types.Default.push({
@@ -659,7 +689,7 @@ var Package;
                 Object.keys(overrides).forEach(function (partName) {
                     contentTypes.Types.Override.push({
                         $: {
-                            ContentType: overrides[partName],
+                            ContentType: overrides[partName].contentType,
                             PartName: partName
                         }
                     });

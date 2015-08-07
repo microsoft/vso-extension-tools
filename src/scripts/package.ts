@@ -28,11 +28,19 @@ export module Package {
 	}
 	
 	/**
+	 * Represents a part in an OPC package
+	 */
+	export interface PackagePart {
+		contentType?: string;
+		partName: string;
+	}
+	
+	/**
 	 * List of files in the package, mapped to null, or, if it can't be properly auto-
 	 * detected, a content type.
 	 */
 	export interface PackageFiles {
-		[path: string]: string;
+		[path: string]: PackagePart;
 	}
 	
 	/**
@@ -41,7 +49,9 @@ export module Package {
 	export interface FileDeclaration {
 		assetType?: string;
 		contentType?: string;
+		auto?: boolean;
 		path: string;
+		partName: string;
 	}
 	
 	/**
@@ -246,6 +256,32 @@ export module Package {
 							});
 						}
 						
+						// Expand any directories listed in the files array
+						let pathToFileDeclarations = (fsPath: string, root: string): FileDeclaration[] => {
+							let files: FileDeclaration[] = [];
+							if (fs.lstatSync(fsPath).isDirectory()) {
+								log.debug("Path '%s` is a directory. Adding all contained files (recursive).", fsPath);
+								fs.readdirSync(fsPath).forEach((dirChildPath) => {
+									log.debug("-- %s", dirChildPath);
+									files = files.concat(pathToFileDeclarations(path.join(fsPath, dirChildPath), root));
+								});
+							} else {
+								let relativePath = path.relative(root, fsPath);
+								files.push({path: relativePath, partName: relativePath, auto: true});
+							}
+							return files;
+						};
+						
+						if (_.isArray(partial["files"])) {
+							for (let i = partial["files"].length - 1; i >= 0; --i) {
+								let fileDecl: FileDeclaration = partial["files"][i];
+								let fsPath = path.join(vsoManifest.__meta_root, fileDecl.path);
+								if (fs.lstatSync(fsPath).isDirectory()) {
+									Array.prototype.splice.apply(partial["files"], (<any[]>[i, 1]).concat(pathToFileDeclarations(fsPath, vsoManifest.__meta_root)));
+								}
+							}
+						}
+						
 						// Merge each key of each partial manifest into the joined manifests
 						Object.keys(partial).forEach((key) => {
 							this.mergeKey(key, partial[key], vsoManifest, vsixManifest, packageFiles, partials.length - 1 === partialIndex && overridesProvided);
@@ -416,6 +452,14 @@ export module Package {
 					if (_.isArray(value)) {
 						value.forEach((asset: FileDeclaration) => {
 							let assetPath = asset.path.replace(/\\/g, "/");
+							if (!asset.auto || !packageFiles[assetPath]) {
+								packageFiles[assetPath] = {
+									partName: asset.partName || assetPath
+								};
+							}
+							if (asset.contentType) {
+								packageFiles[assetPath].contentType = asset.contentType;
+							}
 							if (asset.assetType) {
 								vsixManifest.PackageManifest.Assets[0].Asset.push({
 									"$": {
@@ -424,11 +468,6 @@ export module Package {
 										"Path": assetPath
 									}
 								});
-							}
-							if (asset.contentType) {
-								packageFiles[assetPath] = asset.contentType;
-							} else {
-								packageFiles[assetPath] = null;
 							}
 							if (asset.assetType === "Microsoft.VisualStudio.Services.Icons.Default") {
 								vsixManifest.PackageManifest.Metadata[0].Icon = [assetPath];
@@ -468,6 +507,7 @@ export module Package {
 			".md": "text/markdown",
 			".pdf": "application/pdf",
 			".bat": "application/bat",
+			".json": "application/json",
 			".vsomanifest": "application/json",
 			".vsixmanifest": "text/xml"
 		};
@@ -563,14 +603,17 @@ export module Package {
 				throw "Manifest root unknown. Manifest objects should have a __meta_root key specifying the absolute path to the root of assets.";
 			}
 			// Add assets to vsix archive
-			let overrides: {[partName: string]: string} = {};
+			let overrides: {[partName: string]: PackagePart} = {};
 			Object.keys(this.files).forEach((file) => {
 				if (_.endsWith(file, VsixWriter.VSO_MANIFEST_FILENAME)) {
 					return;
 				}
-				let partName = file.replace(/\\/g, "/"); 
+				
+				let partName = this.files[file].partName.replace(/\\/g, "/"); 
+				let fsPath = path.join(root, file);
+				
 				vsix.file(partName, fs.readFileSync(path.join(root, file)));
-				if (this.files[file]) {
+				if (this.files[file].contentType) {
 					overrides[partName] = this.files[file];
 				}
 			});
@@ -626,7 +669,7 @@ export module Package {
 		 * This xml contains a <Default> entry for each different file extension
 		 * found in the package, mapping it to the appropriate MIME type.
 		 */
-		private genContentTypesXml(fileNames: string[], overrides: {[partName: string]: string}): Q.Promise<string> {
+		private genContentTypesXml(fileNames: string[], overrides: {[partName: string]: PackagePart}): Q.Promise<string> {
 			log.debug("Generating [Content_Types].xml");
 			let contentTypes: any = {
 				Types: {
@@ -655,6 +698,9 @@ export module Package {
 					return extName;
 				}));
 				uniqueExtensions.forEach((ext) => {
+					if (!ext.trim()) {
+						return;
+					}
 					if (!ext) {
 						return;
 					}
@@ -737,7 +783,7 @@ export module Package {
 										hitCounters[magicMime].push(fileName);
 									} else {
 										if (!overrides[fileName]) {
-											overrides[fileName] = magicMime;
+											overrides[fileName].contentType = magicMime;
 										}
 									}
 								} else {
@@ -745,7 +791,7 @@ export module Package {
 										reject(stderr.toString("utf8"));
 									} else {
 										log.warn("Could not determine content type for %s. Defaulting to application/octet-stream. To override this, add a contentType property to this file entry in the manifest.", fileName);
-										overrides[fileName] = "application/octet-stream";
+										overrides[fileName].contentType = "application/octet-stream";
 									}
 								}
 								resolve(null);
@@ -765,7 +811,7 @@ export module Package {
 								return;
 							}
 							hitCounts[type].forEach((fileName) => {
-								overrides[fileName] = type;
+								overrides[fileName].contentType = type;
 							});
 						});
 						contentTypes.Types.Default.push({
@@ -781,7 +827,7 @@ export module Package {
 				Object.keys(overrides).forEach((partName) => {
 					contentTypes.Types.Override.push({
 						$: {
-							ContentType: overrides[partName],
+							ContentType: overrides[partName].contentType,
 							PartName: partName
 						}
 					})
