@@ -723,6 +723,7 @@ var Package;
             ".md": "text/markdown",
             ".pdf": "application/pdf",
             ".bat": "application/bat",
+            ".json": "application/json",
             ".vsomanifest": "application/json",
             ".vsixmanifest": "text/xml"
         };

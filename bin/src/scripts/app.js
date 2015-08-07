@@ -175,7 +175,7 @@ if (parseInt(version.split(".")[1], 10) < 12) {
     process.exit(-1);
 }
 program
-    .version("0.4.9")
+    .version("0.4.10")
     .option("--fiddler", "Use the fiddler proxy for REST API calls.")
     .option("--nologo", "Suppress printing the VSET logo.")
     .option("--debug", "Print debug log messages.")
