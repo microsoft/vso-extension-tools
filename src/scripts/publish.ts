@@ -66,13 +66,13 @@ export module Publish {
 							throw "Could not locate vsix manifest!";
 						}
 					}).then((vsixManifestAsJson) => {
-						let extensionId: string = _.get<string>(vsixManifestAsJson, "PackageManifest.Metadata[0].Identity[0].$.Id");
-						let extensionPublisher: string = _.get<string>(vsixManifestAsJson, "PackageManifest.Metadata[0].Identity[0].$.Publisher");
+						let extensionId: string = this.settings.extensionId || _.get<string>(vsixManifestAsJson, "PackageManifest.Metadata[0].Identity[0].$.Id");
+						let extensionPublisher: string = this.settings.publisher || _.get<string>(vsixManifestAsJson, "PackageManifest.Metadata[0].Identity[0].$.Publisher");
 						let extensionVersion: string = _.get<string>(vsixManifestAsJson, "PackageManifest.Metadata[0].Identity[0].$.Version");
 						if (extensionId && extensionPublisher) {
 							return {id: extensionId, publisher: extensionPublisher, version: extensionVersion};
 						} else {
-							throw "Could not locate both the extension id and publisher in vsix manfiest! Ensure your manifest includes both a namespace and a publisher property.";
+							throw "Could not locate both the extension id and publisher in vsix manfiest! Ensure your manifest includes both a namespace and a publisher property, or specify the necessary --publisher and/or --extension options.";
 						}
 					});
 				} 

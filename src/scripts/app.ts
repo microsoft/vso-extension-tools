@@ -179,11 +179,12 @@ if (parseInt(version.split(".")[1], 10) < 12) {
 }
 
 program
-	.version("0.4.10")
+	.version("0.4.12")
 	.option("--fiddler", "Use the fiddler proxy for REST API calls.")
 	.option("--nologo", "Suppress printing the VSET logo.")
 	.option("--debug", "Print debug log messages.")
 	.option("--save", "Save command line options to ./settings.vset.json")
+	.option("--bypass-validation", "Bypass local validation during packaging.")
 	.usage("command [options]");
 
 program
@@ -194,6 +195,8 @@ program
 	.option("-o, --output-path <output>", "Specify the path and file name of the generated vsix. [{auto}]")
 	.option("-s, --settings <settings_path>", "Specify the path to a settings file. [./settings.vset.json]")
 	.option("-i, --override <overrides_JSON>", "Specify a JSON string to override anything in the manifests.")
+	.option("-p, --publisher <publisher>", "Specify/override the publisher of the extension.")
+	.option("-e, --extension <extension_id>", "Specify/override the extension id of the extension.")
 	.action(App.createPackage);
 	
 program
@@ -203,6 +206,8 @@ program
 	.option("-r, --root <root>", "Specify the root for files in your vsix package. [.]")
 	.option("-m, --manifest-glob <glob>", "Specify the pattern for manifest files to join. [vss-extension.json]")
 	.option("-o, --output-path <output>", "Specify the path and file name of the generated vsix. [{auto}]")
+	.option("-p, --publisher <publisher>", "Specify/override the publisher of the extension.")
+	.option("-e, --extension <extension_id>", "Specify/override the extension id of the extension.")
 	.option("-i, --override <overrides_JSON>", "Specify a JSON string to override anything in the manifests.")
 	.option("-g, --gallery-url <gallery_url>", "Specify the URL to the gallery. [https://app.market.visualstudio.com]")
 	.option("-t, --token <token>", "Specify your personal access token.")

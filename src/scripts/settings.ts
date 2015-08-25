@@ -33,18 +33,18 @@ export interface CommandLineOptions {
 	token?: string;
 	galleryUrl?: string;
 	vsix?: string;
-	extension?: string;
 	settings?: string;
 	forceOverwrite?: boolean;
 	override?: string;
 	shareWith?: string;
 	unshareWith?: string;
 	publisher?: string;
+	extension?: string;
 }
 
 
 export function resolveSettings(options: CommandLineOptions, defaults?: AppSettings): Q.Promise<AppSettings> {
-	let passedOptions = <AppSettings>{};
+	let passedOptions = <AppSettings>{package: <PackageSettings>{}, publish: <PublishSettings>{}};
 	let settingsPath: string = path.resolve("settings.vset.json");
 	let customSettings = false;
 	let defaultSettings = defaults || {};
@@ -76,12 +76,6 @@ export function resolveSettings(options: CommandLineOptions, defaults?: AppSetti
 	if (options.unshareWith) {
 		_.set(passedOptions, "publish.shareWith", options.unshareWith.split(/,|;/));
 	}
-	if (options.publisher) {
-		_.set(passedOptions, "publish.publisher", options.publisher);
-	}
-	if (options.extension) {
-		_.set(passedOptions, "publish.extensionId", options.extension);
-	}
 	if (options.override) {
 		try {
 			_.set(passedOptions, "package.overrides", JSON.parse(options.override));
@@ -89,6 +83,15 @@ export function resolveSettings(options: CommandLineOptions, defaults?: AppSetti
 			log.warn("Could not parse override JSON.");
 			log.info(options.override, 2);
 		}
+	}
+	if (!passedOptions.package.overrides) {
+		passedOptions.package.overrides = {};
+	}
+	if (options.publisher) {
+		passedOptions.package.overrides.publisher = options.publisher;
+	}
+	if (options.extension) {
+		passedOptions.package.overrides.extensionId = options.extension;
 	}
 	return saveCliOptions(passedOptions, settingsPath).then(() => {
 		return Q.Promise<AppSettings>((resolve, reject, notify) => {

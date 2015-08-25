@@ -58,14 +58,14 @@ var Publish;
                             throw "Could not locate vsix manifest!";
                         }
                     }).then(function (vsixManifestAsJson) {
-                        var extensionId = _.get(vsixManifestAsJson, "PackageManifest.Metadata[0].Identity[0].$.Id");
-                        var extensionPublisher = _.get(vsixManifestAsJson, "PackageManifest.Metadata[0].Identity[0].$.Publisher");
+                        var extensionId = _this.settings.extensionId || _.get(vsixManifestAsJson, "PackageManifest.Metadata[0].Identity[0].$.Id");
+                        var extensionPublisher = _this.settings.publisher || _.get(vsixManifestAsJson, "PackageManifest.Metadata[0].Identity[0].$.Publisher");
                         var extensionVersion = _.get(vsixManifestAsJson, "PackageManifest.Metadata[0].Identity[0].$.Version");
                         if (extensionId && extensionPublisher) {
                             return { id: extensionId, publisher: extensionPublisher, version: extensionVersion };
                         }
                         else {
-                            throw "Could not locate both the extension id and publisher in vsix manfiest! Ensure your manifest includes both a namespace and a publisher property.";
+                            throw "Could not locate both the extension id and publisher in vsix manfiest! Ensure your manifest includes both a namespace and a publisher property, or specify the necessary --publisher and/or --extension options.";
                         }
                     });
                 }

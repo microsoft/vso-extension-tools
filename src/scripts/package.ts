@@ -8,6 +8,7 @@ import fs = require("fs");
 import glob = require("glob");
 import log = require("./logger");
 import path = require("path");
+import program = require("commander");
 import Q = require("q");
 import settings = require("./settings");
 import stream = require("stream");
@@ -298,8 +299,8 @@ export module Package {
 					});
 					let validationResult = this.validateVsixJson(vsixManifest);
 					log.debug("VSO Manifest: " + JSON.stringify(vsoManifest, null, 4));
-					log.debug("VSIX Manifest: " + JSON.stringify(vsixManifest, null, 4)); 
-					if (validationResult.length === 0) {
+					log.debug("VSIX Manifest: " + JSON.stringify(vsixManifest, null, 4));
+					if (validationResult.length === 0 || program["bypassValidation"]) {
 						return <VsixComponents>{vsoManifest: vsoManifest, vsixManifest: vsixManifest, files: packageFiles};
 					} else {
 						throw "There were errors with your manifests. Address the following errors and re-run the tool.\n" + validationResult;
@@ -339,16 +340,16 @@ export module Package {
 				case "extensionid":
 				case "id":
 					if (_.isString(value)) {
-						this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].Identity[0].$.Id", value.replace(/\./g, "-", override), "namespace/extensionId/id");
+						this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].Identity[0].$.Id", value.replace(/\./g, "-"), "namespace/extensionId/id", override);
 					}
 					break;
 				case "version":
-					if (this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].Identity[0].$.Version", value, key), override) {
+					if (this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].Identity[0].$.Version", value, key, override)) {
 						vsoManifest.version = value;
 					}
 					break;
 				case "name":
-					if (this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].DisplayName[0]", value, key), override) {
+					if (this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].DisplayName[0]", value, key, override)) {
 						vsoManifest.name = value;
 					}
 					break;
@@ -506,10 +507,15 @@ export module Package {
 		private static CONTENT_TYPE_MAP: {[key: string]: string} = {
 			".md": "text/markdown",
 			".pdf": "application/pdf",
+			".png": "image/png",
+			".jpeg": "image/jpeg",
+			".jpg": "image/jpeg",
+			".gif": "image/gif",
 			".bat": "application/bat",
 			".json": "application/json",
 			".vsomanifest": "application/json",
-			".vsixmanifest": "text/xml"
+			".vsixmanifest": "text/xml",
+			".ps1": "text/ps1"
 		};
 		
 		/**
@@ -828,7 +834,7 @@ export module Package {
 					contentTypes.Types.Override.push({
 						$: {
 							ContentType: overrides[partName].contentType,
-							PartName: partName
+							PartName: "/" + _.trimLeft(partName, "/")
 						}
 					})
 				});

@@ -6,6 +6,7 @@ var fs = require("fs");
 var glob = require("glob");
 var log = require("./logger");
 var path = require("path");
+var program = require("commander");
 var Q = require("q");
 var tmp = require("tmp");
 var winreg = require("winreg");
@@ -147,7 +148,7 @@ var Package;
                     var validationResult = _this.validateVsixJson(vsixManifest);
                     log.debug("VSO Manifest: " + JSON.stringify(vsoManifest, null, 4));
                     log.debug("VSIX Manifest: " + JSON.stringify(vsixManifest, null, 4));
-                    if (validationResult.length === 0) {
+                    if (validationResult.length === 0 || program["bypassValidation"]) {
                         return { vsoManifest: vsoManifest, vsixManifest: vsixManifest, files: packageFiles };
                     }
                     else {
@@ -189,16 +190,16 @@ var Package;
                 case "extensionid":
                 case "id":
                     if (_.isString(value)) {
-                        this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].Identity[0].$.Id", value.replace(/\./g, "-", override), "namespace/extensionId/id");
+                        this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].Identity[0].$.Id", value.replace(/\./g, "-"), "namespace/extensionId/id", override);
                     }
                     break;
                 case "version":
-                    if (this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].Identity[0].$.Version", value, key), override) {
+                    if (this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].Identity[0].$.Version", value, key, override)) {
                         vsoManifest.version = value;
                     }
                     break;
                 case "name":
-                    if (this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].DisplayName[0]", value, key), override) {
+                    if (this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].DisplayName[0]", value, key, override)) {
                         vsoManifest.name = value;
                     }
                     break;
@@ -690,7 +691,7 @@ var Package;
                     contentTypes.Types.Override.push({
                         $: {
                             ContentType: overrides[partName].contentType,
-                            PartName: partName
+                            PartName: "/" + _.trimLeft(partName, "/")
                         }
                     });
                 });
@@ -722,10 +723,15 @@ var Package;
         VsixWriter.CONTENT_TYPE_MAP = {
             ".md": "text/markdown",
             ".pdf": "application/pdf",
+            ".png": "image/png",
+            ".jpeg": "image/jpeg",
+            ".jpg": "image/jpeg",
+            ".gif": "image/gif",
             ".bat": "application/bat",
             ".json": "application/json",
             ".vsomanifest": "application/json",
-            ".vsixmanifest": "text/xml"
+            ".vsixmanifest": "text/xml",
+            ".ps1": "text/ps1"
         };
         return VsixWriter;
     })();

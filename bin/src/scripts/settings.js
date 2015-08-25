@@ -7,7 +7,7 @@ var path = require("path");
 var program = require("commander");
 var tmp = require("tmp");
 function resolveSettings(options, defaults) {
-    var passedOptions = {};
+    var passedOptions = { package: {}, publish: {} };
     var settingsPath = path.resolve("settings.vset.json");
     var customSettings = false;
     var defaultSettings = defaults || {};
@@ -47,6 +47,15 @@ function resolveSettings(options, defaults) {
             log.warn("Could not parse override JSON.");
             log.info(options.override, 2);
         }
+    }
+    if (!passedOptions.package.overrides) {
+        passedOptions.package.overrides = {};
+    }
+    if (options.publisher) {
+        passedOptions.package.overrides.publisher = options.publisher;
+    }
+    if (options.extension) {
+        passedOptions.package.overrides.extensionId = options.extension;
     }
     return saveCliOptions(passedOptions, settingsPath).then(function () {
         return Q.Promise(function (resolve, reject, notify) {
