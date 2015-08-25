@@ -76,6 +76,12 @@ export function resolveSettings(options: CommandLineOptions, defaults?: AppSetti
 	if (options.unshareWith) {
 		_.set(passedOptions, "publish.shareWith", options.unshareWith.split(/,|;/));
 	}
+	if (options.publisher) {
+		_.set(passedOptions, "publish.publisher", options.publisher);
+	}
+	if (options.extension) {
+		_.set(passedOptions, "publish.extensionId", options.extension);
+	}
 	if (options.override) {
 		try {
 			_.set(passedOptions, "package.overrides", JSON.parse(options.override));
