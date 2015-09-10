@@ -23,10 +23,8 @@ module PackageTests {
 							assert.equal(manifests.vsixManifest.PackageManifest.Metadata[0].Tags[0].length, 15);
 							
 							var contributions = manifests.vsoManifest.contributions;
-							console.log(contributions);
 							assert.equal(contributions.length, 19);
-							done();
-						}).catch(console.error.bind(console));
+						}).then(() => done(), done);
 					});
 				});
 			});
@@ -38,9 +36,7 @@ module PackageTests {
 						var merger = new Package.Merger(<settings.PackageSettings>{root: path.join(tmpPath, ".."), manifestGlobs: ["manifests/**/*.json"]});
 						merger.merge().then((manifests) => {
 							var vsixWriter = new Package.VsixWriter(manifests.vsoManifest, manifests.vsixManifest, manifests.files);
-							vsixWriter.writeVsix(path.join(path.dirname(tmpPath), "ext.vsix")).then(() => {
-								done();
-							}).catch(console.error.bind(console));
+							vsixWriter.writeVsix(path.join(path.dirname(tmpPath), "ext.vsix")).then(() => done(), done);
 						});
 					});
 				});
@@ -55,9 +51,7 @@ module PackageTests {
 							var writer = new Package.ManifestWriter(manifests.vsoManifest, manifests.vsixManifest);
 							var vsoStr = fs.createWriteStream(path.join(tmpPath, "vso.json"), {encoding: "utf-8"});
 							var vsixStr = fs.createWriteStream(path.join(tmpPath, "vsix.xml"), {encoding: "utf-8"});
-							writer.writeManifests(vsoStr, vsixStr).then(() => {
-								done();
-							});
+							writer.writeManifests(vsoStr, vsixStr).then(() => done(), done);
 						});
 					});
 				});
