@@ -15,14 +15,14 @@ import zip = require("jszip");
 
 export module Publish {
 	
-	interface CoreExtInfo {
+	export interface CoreExtInfo {
 		id: string;
 		publisher: string;
 		version: string;
 		published?: boolean;
 	}
 	
-	class GalleryBase {
+	export class GalleryBase {
 		protected settings: settings.PublishSettings;
 		protected galleryClient: GalleryClient.GalleryHttpClient;
 		private vsixInfoPromise: Q.Promise<CoreExtInfo>;

@@ -11,14 +11,14 @@ import WebApi_Contracts = require("./Contracts");
 /**
  * Metadata for deserializing an enum field on a contract/type
  */
-interface ContractEnumMetadata {
+export interface ContractEnumMetadata {
     enumValues?: { [name: string]: number; };
 }
 
 /**
  * Metadata for deserializing a particular field on a contract/type
  */
-interface ContractFieldMetadata {
+export interface ContractFieldMetadata {
     isArray?: boolean;
     isDate?: boolean;
     enumType?: ContractEnumMetadata;
@@ -36,7 +36,7 @@ interface ContractFieldMetadata {
 /**
  * Metadata required for deserializing a given type
  */
-interface ContractMetadata {
+export interface ContractMetadata {
     fields?: { [fieldName: string]: ContractFieldMetadata; };
 }
 
