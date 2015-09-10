@@ -7,9 +7,5 @@
 		"removeComments": true,
 		"outDir": "bin/",
 		"newLine": "LF"
-	},
-	"files": [
-		"src/scripts/app.ts",
-		"test/package.test.ts"
-	]
+	}
 }
