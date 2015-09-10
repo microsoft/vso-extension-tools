@@ -69,7 +69,7 @@ module PackageTests {
 		tmp.dir({unsafeCleanup: false},(err, tmpPath, cleanupCallback) => {
 			if (err) throw err;
 			var tmpManifestsPath = path.join(tmpPath, "manifests");
-			var srcManifestsPath = path.join(require("app-root-path").path, "test", "tmpl")
+			var srcManifestsPath = path.join(__dirname, "tmpl")
 			fs.mkdirSync(tmpManifestsPath);
 			fsx.copySync(srcManifestsPath, tmpManifestsPath);
 			action(tmpManifestsPath);
