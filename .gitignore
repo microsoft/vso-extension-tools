@@ -31,4 +31,4 @@ tmp/
 out.nex
 vset.exe
 
-# We're consciously versioning JavaScript files so that NPM users don't need to compile.
+bin
