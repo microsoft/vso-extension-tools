@@ -9,6 +9,10 @@
       "email": "trgau@microsoft.com"
     }
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Microsoft/vso-extension-tools.git"
+  },
   "dependencies": {
     "app-root-path": "1.0.0",
     "chalk": "1.0.0",
