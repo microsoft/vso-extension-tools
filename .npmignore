@@ -1,0 +1,8 @@
+src/
+test/
+typings/
+bin/test/
+settings-example.json
+test.cmd
+tsconfig.json
+tsd.json
