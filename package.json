@@ -14,7 +14,8 @@
     "url": "https://github.com/Microsoft/vso-extension-tools.git"
   },
   "scripts": {
-    "prepublish": "gulp compile"
+    "prepublish": "gulp compile",
+    "test": "mocha"
   },
   "dependencies": {
     "app-root-path": "1.0.0",
