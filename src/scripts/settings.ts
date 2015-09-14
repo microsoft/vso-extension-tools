@@ -25,6 +25,8 @@ export interface PackageSettings {
 	manifestGlobs: string[];
 	outputPath: string;
 	overrides: any;
+	resjsonPath: string;
+	languageTag: string;
 }
 export interface CommandLineOptions {
 	root?: string;
@@ -40,6 +42,8 @@ export interface CommandLineOptions {
 	unshareWith?: string;
 	publisher?: string;
 	extension?: string;
+	language?: string;
+	writeResjson?: string;
 }
 
 
@@ -56,6 +60,12 @@ export function resolveSettings(options: CommandLineOptions, defaults?: AppSetti
 	}
 	if (options.root) {
 		_.set(passedOptions, "package.root", options.root);
+	}
+	if (options.writeResjson) {
+		_.set(passedOptions, "package.resjsonPath", options.writeResjson);
+	}
+	if (options.language) {
+		_.set(passedOptions, "package.languageTag", options.language);
 	}
 	if (options.settings) {
 		settingsPath = options.settings;

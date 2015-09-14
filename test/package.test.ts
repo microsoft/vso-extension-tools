@@ -33,10 +33,15 @@ module PackageTests {
 			describe("#writeVsix", () => {
 				it("Should write the given manifests into a .vsix archive.", (done) => {
 					withManifests((tmpPath) => {
-						var merger = new Package.Merger(<settings.PackageSettings>{root: path.join(tmpPath, ".."), manifestGlobs: ["manifests/**/*.json"]});
+						let settings = <settings.PackageSettings>{
+							root: path.join(tmpPath, ".."), 
+							manifestGlobs: ["manifests/**/*.json"],
+							outputPath: path.join(path.dirname(tmpPath), "ext.vsix")
+						};
+						var merger = new Package.Merger(settings);
 						merger.merge().then((manifests) => {
-							var vsixWriter = new Package.VsixWriter(manifests.vsoManifest, manifests.vsixManifest, manifests.files);
-							vsixWriter.writeVsix(path.join(path.dirname(tmpPath), "ext.vsix")).then(() => done(), done);
+							var vsixWriter = new Package.VsixWriter(settings, manifests);
+							vsixWriter.writeVsix().then(() => done(), done);
 						});
 					});
 				});

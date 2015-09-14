@@ -20,7 +20,9 @@ module App {
 			root: process.cwd(),
 			manifestGlobs: ["vss-extension.json"],
 			outputPath: "{auto}",
-			overrides: null
+			overrides: null,
+			languageTag: "en-US",
+			resjsonPath: null
 		},
 		publish: {
 			galleryUrl: "https://app.market.visualstudio.com",
@@ -38,9 +40,9 @@ module App {
 		log.info("Merge partial manifests", 2);
 		return merger.merge().then((vsixComponents) => {
 			log.success("Merged successfully");
-			let vsixWriter = new package.Package.VsixWriter(vsixComponents.vsoManifest, vsixComponents.vsixManifest, vsixComponents.files);
+			let vsixWriter = new package.Package.VsixWriter(settings, vsixComponents);
 			log.info("Beginning writing VSIX", 2);
-			return vsixWriter.writeVsix(settings.outputPath).then((outPath: string) => {
+			return vsixWriter.writeVsix().then((outPath: string) => {
 				log.info("VSIX written to: %s", 3, outPath);
 				return outPath;
 			});
@@ -170,6 +172,10 @@ module App {
 			log.success("Successfully upgraded manifest to M85. Result written to %s", outPath);
 		}).catch(errHandler.errLog);
 	}
+	
+	export function preploc() {
+		
+	}
 }
 
 let version = process.version;
@@ -197,6 +203,8 @@ program
 	.option("-i, --override <overrides_JSON>", "Specify a JSON string to override anything in the manifests.")
 	.option("-p, --publisher <publisher>", "Specify/override the publisher of the extension.")
 	.option("-e, --extension <extension_id>", "Specify/override the extension id of the extension.")
+	.option("-l, --language <language_tag>", "Specify the default language of the extension. [en-US]")
+	.option("--write-resjson <resjson_path>", "Specify a path to write a .resjson file. Used to assist with localization.")
 	.action(App.createPackage);
 	
 program
@@ -213,6 +221,7 @@ program
 	.option("-t, --token <token>", "Specify your personal access token.")
 	.option("-w, --share-with <share_with>", "Comma-separated list of accounts to share the extension with after it is published.")
 	.option("-s, --settings <settings_path>", "Specify the path to a settings file. [./settings.vset.json]")
+	.option("-l, --language <language_tag>", "Specify the default language of the extension. [en-US]")
 	.action(App.publishVsix);
 	
 program
@@ -271,6 +280,13 @@ program
 	.description("Convert a manifest to the new contribution model introduced in M85.")
 	.option("-f, --force-overwrite", "Overwrite an existing file, or overwrite the original manifest when output_path is not specified.")
 	.action(App.toM85);
+	
+program
+	.command("preploc <languages>")
+	.description("Prep your extension to be localized. See readme for more info.")
+	.action(App.preploc);
+	
+
 
 program.parse(process.argv);
 

@@ -6,7 +6,9 @@ import defaultManifest = require("./default-manifest");
 import childProcess = require("child_process");
 import fs = require("fs");
 import glob = require("glob");
+import loc = require("./loc");
 import log = require("./logger");
+import os = require("os");
 import path = require("path");
 import program = require("commander");
 import Q = require("q");
@@ -27,6 +29,7 @@ export module Package {
 		vsoManifest: any;
 		vsixManifest: any;
 		files: PackageFiles;
+		resources: loc.LocPrep.ResourceSet;
 	}
 	
 	/**
@@ -54,6 +57,8 @@ export module Package {
 		auto?: boolean;
 		path: string;
 		partName: string;
+		lang?: string;
+		addressable?: boolean;
 	}
 	
 	/**
@@ -81,6 +86,7 @@ export module Package {
 	 * manifests (one vsoManifest and one vsixManifest)
 	 */
 	export class Merger {
+		private static NO_LOC_PREFIX = "!!";
 		private mergeSettings: MergeSettings;
 		
 		private static vsixValidators: {[path: string]: (value) => string} = {
@@ -166,7 +172,8 @@ export module Package {
 			}
 		}
 		
-		private gatherManifests(globPatterns: string[]): Q.Promise<string[]> {
+		public gatherManifests(): Q.Promise<string[]> {
+			let globPatterns = this.mergeSettings.manifestGlobs;
 			let globs = globPatterns.map(pattern => 
 				path.isAbsolute(pattern) ? pattern : path.join(this.mergeSettings.root, pattern));
 			return Q.all(globs.map(pattern => this.gatherManifestsFromGlob(pattern))).then((fileLists) => {
@@ -199,7 +206,7 @@ export module Package {
 		 * @return Q.Promise<SplitManifest> An object containing the two manifests
 		 */
 		public merge(): Q.Promise<VsixComponents> {
-			return this.gatherManifests(this.mergeSettings.manifestGlobs).then((files: string[]) => {
+			return this.gatherManifests().then((files: string[]) => {
 				let overridesProvided = false;
 				let manifestPromises: Q.Promise<any>[] = [];
 				files.forEach((file) => {
@@ -283,7 +290,6 @@ export module Package {
 								}
 							}
 						}
-						
 						// Merge each key of each partial manifest into the joined manifests
 						Object.keys(partial).forEach((key) => {
 							this.mergeKey(key, partial[key], vsoManifest, vsixManifest, packageFiles, partials.length - 1 === partialIndex && overridesProvided);
@@ -298,16 +304,46 @@ export module Package {
 							vsoManifest[d] = vsoDefaults[d];
 						}
 					});
+					
+					let locPrepper = new loc.LocPrep.LocKeyGenerator(vsoManifest, vsixManifest);
+					let extractedResources = locPrepper.generateLocalizationKeys();
+					
+					this.removeNoLocIndicators(vsoManifest);
 					let validationResult = this.validateVsixJson(vsixManifest);
 					log.debug("VSO Manifest: " + JSON.stringify(vsoManifest, null, 4));
 					log.debug("VSIX Manifest: " + JSON.stringify(vsixManifest, null, 4));
 					if (validationResult.length === 0 || program["bypassValidation"]) {
-						return <VsixComponents>{vsoManifest: vsoManifest, vsixManifest: vsixManifest, files: packageFiles};
+						return <VsixComponents>{
+							vsoManifest: vsoManifest, 
+							vsixManifest: vsixManifest, 
+							files: packageFiles,
+							resources: extractedResources
+						};
 					} else {
 						throw "There were errors with your manifests. Address the following errors and re-run the tool.\n" + validationResult;
 					}
 				});
 			});
+		}
+		
+		/**
+		 * Contribution property keys may start with "!!" to indicate
+		 * a property shall not be localized. This should be removed
+		 * before we write a vsomanifest.
+		 */
+		private removeNoLocIndicators(vsoManifest: any): void {
+			if (vsoManifest.contributions) {
+				for (let contribution of vsoManifest.contributions) {
+					if (contribution.properties) {
+						for (let property in contribution.properties) {
+							if (_.startsWith(property, Merger.NO_LOC_PREFIX)) {
+								contribution.properties[property.substr(2)] = contribution.properties[property];
+								delete contribution.properties[property];
+							}
+						}
+					}
+				}
+			}
 		}
 		
 		private handleDelimitedList(value: any, object: any, path: string, delimiter: string = ",", uniq: boolean = true): void {
@@ -345,18 +381,13 @@ export module Package {
 					}
 					break;
 				case "version":
-					if (this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].Identity[0].$.Version", value, key, override)) {
-						vsoManifest.version = value;
-					}
+					this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].Identity[0].$.Version", value, key, override);
 					break;
 				case "name":
-					if (this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].DisplayName[0]", value, key, override)) {
-						vsoManifest.name = value;
-					}
+					this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].DisplayName[0]", value, key, override);
 					break;
 				case "description":
-					vsoManifest.description = value;
-					vsixManifest.PackageManifest.Metadata[0].Description[0]._ = value;
+					this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].Description[0]._", value, key, override);
 					break;
 				case "eventcallbacks":
 					if (_.isObject(value)) {
@@ -374,6 +405,7 @@ export module Package {
 							"$": {
 								"Type": "Microsoft.VisualStudio.Services.Icons.Default",
 								"d:Source": "File",
+								"Addressable": "true",
 								"Path": iconPath
 							}
 						});
@@ -387,6 +419,7 @@ export module Package {
 							"$": {
 								"Type": "Microsoft.VisualStudio.Services.Icons.Wide",
 								"d:Source": "File",
+								"Addressable": "true",
 								"Path": value["wide"].replace(/\\/g, "/")
 							}
 						});
@@ -463,12 +496,19 @@ export module Package {
 								packageFiles[assetPath].contentType = asset.contentType;
 							}
 							if (asset.assetType) {
+								let attributes: {[key: string]: string} = {
+									"Type": asset.assetType,
+									"d:Source": "File",
+									"Path": assetPath
+								};
+								if (asset.addressable) {
+									attributes["Addressable"] = "true";
+								}
+								if (asset.lang) {
+									attributes["Lang"] = asset.lang;
+								}
 								vsixManifest.PackageManifest.Assets[0].Asset.push({
-									"$": {
-										"Type": asset.assetType,
-										"d:Source": "File",
-										"Path": assetPath
-									}
+									"$": attributes
 								});
 							}
 							if (asset.assetType === "Microsoft.VisualStudio.Services.Icons.Default") {
@@ -497,10 +537,22 @@ export module Package {
 		private vsoManifest: any;
 		private vsixManifest: any;
 		private files: PackageFiles;
+		private resources: loc.LocPrep.ResourceSet;
+		private settings: settings.PackageSettings;
 		
 		private static VSO_MANIFEST_FILENAME: string = "extension.vsomanifest";
 		private static VSIX_MANIFEST_FILENAME: string = "extension.vsixmanifest";
 		private static CONTENT_TYPES_FILENAME: string = "[Content_Types].xml";
+		public static DEFAULT_XML_BUILDER_SETTINGS: xml.BuilderOptions = {
+			indent: "    ",
+			newline: os.EOL,
+			pretty: true,
+			xmldec: {
+				encoding: "utf-8",
+				standalone: null,
+				version: "1.0"
+			}
+		};
 		
 		/**
 		 * List of known file types to use in the [Content_Types].xml file in the VSIX package.
@@ -524,10 +576,12 @@ export module Package {
 		 * @param any vsoManifest JS Object representing a vso manifest
 		 * @param any vsixManifest JS Object representing the XML for a vsix manifest
 		 */
-		constructor(vsoManifest: any, vsixManifest: any, files: PackageFiles) {
-			this.vsoManifest = vsoManifest;
-			this.vsixManifest = vsixManifest;
-			this.files = files;
+		constructor(settings: settings.PackageSettings, components: VsixComponents) {
+			this.settings = settings;
+			this.vsoManifest = components.vsoManifest;
+			this.vsixManifest = components.vsixManifest;
+			this.files = components.files;
+			this.resources = components.resources;
 			this.prepManifests();
 		}
 		
@@ -546,7 +600,9 @@ export module Package {
 			
 			assets.push({$:{
 				Type: "Microsoft.VisualStudio.Services.Manifest",
-				Path: VsixWriter.VSO_MANIFEST_FILENAME
+				Path: VsixWriter.VSO_MANIFEST_FILENAME,
+				Addressable: "true",
+				"d:Source": "File"
 			}});
 			
 			log.debug("Manifests finished prepping.");
@@ -581,8 +637,8 @@ export module Package {
 		 * Write a vsix package to the given file name
 		 * @param stream.Writable Stream to write the vsix package
 		 */
-		public writeVsix(outPath: string): Q.Promise<any> {
-			let outputPath = this.getOutputPath(outPath);
+		public writeVsix(): Q.Promise<any> {
+			let outputPath = this.getOutputPath(this.settings.outputPath);
 			let vsix = new zip();
 			let root = this.vsoManifest.__meta_root;
 			if (!root) {
@@ -614,28 +670,22 @@ export module Package {
 					}
 				});
 			}
-			// Write the manifests to a temporary path and add them to the zip
-			return Q.Promise<string>((resolve, reject, notify) => {
-				tmp.dir({unsafeCleanup: true}, (err, tmpPath, cleanupCallback) => {
-					if (err) {
-						reject(err);
-					}
-					resolve(tmpPath);
-				});
-			}).then((tmpPath) => {
-				let manifestWriter = new ManifestWriter(this.vsoManifest, this.vsixManifest);
-				let vsoPath = path.join(tmpPath, VsixWriter.VSO_MANIFEST_FILENAME);
-				let vsixPath = path.join(tmpPath, VsixWriter.VSIX_MANIFEST_FILENAME);
-				let vsoStr = fs.createWriteStream(vsoPath);
-				let vsixStr = fs.createWriteStream(vsixPath);
-				return manifestWriter.writeManifests(vsoStr, vsixStr).then(() => {
-					vsix.file(VsixWriter.VSO_MANIFEST_FILENAME, fs.readFileSync(vsoPath, "utf-8"));
-					vsix.file(VsixWriter.VSIX_MANIFEST_FILENAME, fs.readFileSync(vsixPath, "utf-8"));
-				});
+			
+			return this.writeResourceFileIfNecessary().then(() => {
+				return this.addResourceStrings(vsix);
 			}).then(() => {
-				return this.genContentTypesXml(Object.keys(vsix.files), overrides);
-			}).then((contentTypesXml) => {
-				vsix.file(VsixWriter.CONTENT_TYPES_FILENAME, contentTypesXml);
+				vsix.file(VsixWriter.VSO_MANIFEST_FILENAME, this.getVsoManifestString(this.resources.vsoResources));
+				vsix.file(VsixWriter.VSIX_MANIFEST_FILENAME, this.getVsixManifestString());
+				
+				return this.genContentTypesXml(Object.keys(vsix.files), overrides).then((contentTypesXml) => {
+					vsix.file(VsixWriter.CONTENT_TYPES_FILENAME, contentTypesXml);
+				});
+				
+			}).then(() => {
+				
+				let builder = new xml.Builder(VsixWriter.DEFAULT_XML_BUILDER_SETTINGS);
+				let vsixResourcesXmlStr = builder.buildObject(this.resources.vsixResources);
+				vsix.file(this.settings.languageTag + "/Extension.vsixlangpack", vsixResourcesXmlStr);
 				let buffer = vsix.generate({
 					type: "nodebuffer",
 					compression: "DEFLATE",
@@ -648,6 +698,150 @@ export module Package {
 					.then(() => Q.nfcall(fs.writeFile, outputPath, buffer))
 					.then(() => outputPath);
 			});
+			
+			
+			// Write the manifests to a temporary path and add them to the zip
+			// return this.genContentTypesXml(Object.keys(vsix.files), overrides).then((contentTypesXml) => {
+			// 	vsix.file(VsixWriter.CONTENT_TYPES_FILENAME, contentTypesXml);
+				
+			// }).then(() => {
+			// 	return this.addResourceStrings(vsix);
+			// }).then(() => {
+			// 	vsix.file(VsixWriter.VSO_MANIFEST_FILENAME, this.getVsoManifestString(this.resources.vsoResources));
+			// 	vsix.file(VsixWriter.VSIX_MANIFEST_FILENAME, this.getVsixManifestString());
+				
+			// 	let builder = new xml.Builder(VsixWriter.DEFAULT_XML_BUILDER_SETTINGS);
+			// 	let vsixResourcesXmlStr = builder.buildObject(this.resources.vsixResources);
+			// 	vsix.file(this.settings.languageTag + "/Extension.vsixlangpack", vsixResourcesXmlStr);
+			// 	let buffer = vsix.generate({
+			// 		type: "nodebuffer",
+			// 		compression: "DEFLATE",
+			// 		compressionOptions: { level: 9 },
+			// 		platform: process.platform
+			// 	});
+			// 	log.debug("Writing vsix to: %s", outputPath);
+				
+			// 	return Q.nfcall(mkdirp, path.dirname(outputPath))
+			// 		.then(() => Q.nfcall(fs.writeFile, outputPath, buffer))
+			// 		.then(() => outputPath);
+			// });
+		}
+		
+		private getVsoManifestString(replacements: loc.LocPrep.ResourcesFile): string {
+			let eol = os.EOL;
+			let defaultVsoManifest = loc.LocPrep.makeReplacements(this.vsoManifest, replacements, this.resources.vsoResources);
+			return JSON.stringify(this.removeMetaKeys(defaultVsoManifest), null, 4).replace(/\n/g, eol);
+		}
+		
+		private getVsixManifestString(): string {
+			let eol = os.EOL;
+			let builder = new xml.Builder(VsixWriter.DEFAULT_XML_BUILDER_SETTINGS);
+			return builder.buildObject(this.removeMetaKeys(this.vsixManifest)).replace(/\n/g, eol);
+		}
+		
+		/**
+		 * Looks for a /strings folder in the root. For each folder F under strings,
+		 * look for a resources.resjson file within F. If it exists, split the 
+		 * resources.resjson file into a vso and vsixmanifest resource file. Add 
+		 * each to the vsix archive as F/Extension.resjson and F/Extension.vsixlangpack
+		 */
+		private addResourceStrings(vsix: zip): Q.Promise<void[]> {
+			let stringsPath = path.resolve(path.join(this.settings.root, "strings"));
+			return Q.Promise((resolve, reject, notify) => {
+				fs.exists(stringsPath, (exists) => {
+					resolve(exists);
+				});
+			}).then<boolean>((exists) => {
+				if (exists) {
+					return Q.nfcall(fs.lstat, stringsPath).then((stats: fs.Stats) => {
+						if (stats.isDirectory()) {
+							return true;
+						}
+					});
+				} else {
+					return Q.resolve(false);
+				}
+			}).then<void[]>((stringsFolderExists) => {
+				if (!stringsFolderExists) {
+					return Q.resolve<void[]>(null);
+				}
+				return Q.nfcall(fs.readdir, stringsPath).then((files: string[]) => {
+					let promises = <Q.Promise<void>[]>[];
+					for (var languageTag of files) {
+						var filePath = path.join(stringsPath, languageTag);
+						let promise = Q.nfcall(fs.lstat, filePath).then((fileStats: fs.Stats) => {
+							if (fileStats.isDirectory()) {
+								let resourcePath = path.join(filePath, "resources.resjson");
+								return Q.Promise<boolean>((resolve, reject, notify) => {
+									fs.exists(resourcePath, (exists) => {
+										resolve(exists);
+									});
+								}).then<void>((exists: boolean) => {
+									if (exists) {
+										return Q.nfcall<string>(fs.readFile, resourcePath, "utf8").then<void>((contents: string) => {
+											let resourcesObj = JSON.parse(contents);
+											let locGen = new loc.LocPrep.LocKeyGenerator(null, null);
+											let splitRes = locGen.splitIntoVsoAndVsixResourceObjs(resourcesObj);
+											let locManifestPath = languageTag + "/" + VsixWriter.VSO_MANIFEST_FILENAME;
+											vsix.file(locManifestPath, this.getVsoManifestString(splitRes.vsoResources));
+											this.vsixManifest.PackageManifest.Assets[0].Asset.push({
+												"$": {
+													Lang: languageTag,
+													Type: "Microsoft.VisualStudio.Services.Manifest",
+													Path: locManifestPath,
+													Addressable: "true",
+													"d:Source": "File"
+												}
+											});
+											
+											let builder = new xml.Builder(VsixWriter.DEFAULT_XML_BUILDER_SETTINGS);
+											let vsixLangPackStr = builder.buildObject(splitRes.vsixResources);
+											vsix.file(languageTag + "/Extension.vsixlangpack", vsixLangPackStr);
+										});
+									} else {
+										return Q.resolve<void>(null);
+									}
+								});
+							}
+						});
+						promises.push(promise);
+					}
+					return Q.all(promises);
+				});
+			});
+		}
+		
+		/**
+		 * If the resjsonPath setting is set...
+		 * Check if the path exists. If it does, check if it's a directory.
+		 * If it's a directory, write to path + extension.resjson
+		 * All other cases just write to path.
+		 */
+		private writeResourceFileIfNecessary(): Q.Promise<void> {
+			if (this.settings.resjsonPath) {
+				let resjsonPath = path.resolve(this.settings.root, this.settings.resjsonPath);
+				return Q.Promise<boolean>((resolve, reject, notify) => {
+					fs.exists(resjsonPath, (exists) => {
+						resolve(exists);
+					});
+				}).then<string>((exists) => {
+					if (exists) {
+						return Q.nfcall(fs.lstat, resjsonPath).then((obj: fs.Stats) => {
+							return obj.isDirectory();
+						}).then<string>((isDir) => {
+							if (isDir) {
+								return path.join(resjsonPath, "extension.resjson");
+							} else {
+								return resjsonPath;
+							}
+						});
+					} else {
+						return Q.resolve(resjsonPath)
+					}
+				}).then((determinedPath) => {
+					return Q.nfcall<void>(fs.writeFile, determinedPath, JSON.stringify(this.resources.combined, null, 4), "utf8");
+				});
+			}
 		}
 		
 		/**
@@ -818,17 +1012,14 @@ export module Package {
 						}
 					})
 				});
-				let builder = new xml.Builder({
-					indent: "    ",
-					newline: require("os").EOL,
-					pretty: true,
-					xmldec: {
-						encoding: "utf-8",
-						standalone: null,
-						version: "1.0"
-					}
-				});
+				let builder = new xml.Builder(VsixWriter.DEFAULT_XML_BUILDER_SETTINGS);
 				return builder.buildObject(contentTypes);
+			});
+		}
+		
+		private removeMetaKeys(obj: any): any {
+			return _.omit(obj, (v, k) => {
+				return _.startsWith(k, "__meta_");
 			});
 		}
 		
@@ -846,56 +1037,47 @@ export module Package {
 	/**
 	 * Class to help writing the vso manifest and vsix manifest
 	 */
-	export class ManifestWriter {
-		private vsoManifest: any;
-		private vsixManifest: any;
+	// export class ManifestWriter {
+	// 	private vsoManifest: any;
+	// 	private vsixManifest: any;
 		
-		/**
-		 * constructor
-		 * @param any vsoManifest JS Object representing a vso manifest
-		 * @param any vsixManifest JS Object representing the XML for a vsix manifest
-		 */
-		constructor(vsoManifest: any, vsixManifest: any) {
-			this.vsoManifest = this.removeMetaKeys(vsoManifest);
-			this.vsixManifest = this.removeMetaKeys(vsixManifest);
-		}
+	// 	/**
+	// 	 * constructor
+	// 	 * @param any vsoManifest JS Object representing a vso manifest
+	// 	 * @param any vsixManifest JS Object representing the XML for a vsix manifest
+	// 	 */
+	// 	constructor(vsoManifest: any, vsixManifest: any) {
+	// 		this.vsoManifest = this.removeMetaKeys(vsoManifest);
+	// 		this.vsixManifest = this.removeMetaKeys(vsixManifest);
+	// 	}
 		
-		private removeMetaKeys(obj: any): any {
-			return _.omit(obj, (v, k) => {
-				return _.startsWith(k, "__meta_");
-			});
-		}
+	// 	private removeMetaKeys(obj: any): any {
+	// 		return _.omit(obj, (v, k) => {
+	// 			return _.startsWith(k, "__meta_");
+	// 		});
+	// 	}
 		
-		/**
-		 * Writes the vso manifest and vsix manifest to given streams and ends the streams.
-		 * @param stream.Writable Stream to write the vso manifest (json)
-		 * @param stream.Writable Stream to write the vsix manifest (xml)
-		 * @return Q.Promise<any> A promise that is resolved when the streams have been written/ended
-		 */
-		public writeManifests(vsoStream: stream.Writable, vsixStream: stream.Writable): Q.Promise<any> {
-			let eol = require("os").EOL;
-			let vsoPromise = Q.ninvoke<any>(vsoStream, "write", JSON.stringify(this.vsoManifest, null, 4).replace(/\n/g, eol), "utf8");
-			vsoPromise = vsoPromise.then(() => {
-				vsoStream.end();
-			});
+	// 	/**
+	// 	 * Writes the vso manifest and vsix manifest to given streams and ends the streams.
+	// 	 * @param stream.Writable Stream to write the vso manifest (json)
+	// 	 * @param stream.Writable Stream to write the vsix manifest (xml)
+	// 	 * @return Q.Promise<any> A promise that is resolved when the streams have been written/ended
+	// 	 */
+	// 	public writeManifests(vsoStream: stream.Writable, vsixStream: stream.Writable): Q.Promise<any> {
+	// 		let eol = require("os").EOL;
+	// 		let vsoPromise = Q.ninvoke<any>(vsoStream, "write", JSON.stringify(this.vsoManifest, null, 4).replace(/\n/g, eol), "utf8");
+	// 		vsoPromise = vsoPromise.then(() => {
+	// 			vsoStream.end();
+	// 		});
 			
-			let builder = new xml.Builder({
-				indent: "    ",
-				newline: eol,
-				pretty: true,
-				xmldec: {
-					encoding: "utf-8",
-					standalone: null,
-					version: "1.0"
-				}
-			});
-			let vsix = builder.buildObject(this.vsixManifest);
-			let vsixPromise = Q.ninvoke<any>(vsixStream, "write", vsix, "utf8");
-			vsixPromise = vsixPromise.then(() => {
-				vsixStream.end();
-			});
+	// 		let builder = new xml.Builder(VsixWriter.DEFAULT_XML_BUILDER_SETTINGS);
+	// 		let vsix = builder.buildObject(this.vsixManifest);
+	// 		let vsixPromise = Q.ninvoke<any>(vsixStream, "write", vsix, "utf8");
+	// 		vsixPromise = vsixPromise.then(() => {
+	// 			vsixStream.end();
+	// 		});
 			
-			return Q.all([vsoPromise, vsixPromise]);
-		}
-	}
+	// 		return Q.all([vsoPromise, vsixPromise]);
+	// 	}
+	// }
 }
