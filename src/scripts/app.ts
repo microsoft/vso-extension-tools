@@ -172,14 +172,14 @@ module App {
 	}
 }
 
-let version = process.version;
-if (parseInt(version.split(".")[1], 10) < 12) {
+let version = process.version.split(".");
+if (parseInt(version[1], 10) < 12 && version[0] === "v0") {
 	log.error("Please upgrade to NodeJS v0.12.x or higher");
 	process.exit(-1);
 }
 
 program
-	.version("0.4.13")
+	.version("0.4.14")
 	.option("--fiddler", "Use the fiddler proxy for REST API calls.")
 	.option("--nologo", "Suppress printing the VSET logo.")
 	.option("--debug", "Print debug log messages.")
