@@ -2,7 +2,10 @@ src/
 test/
 typings/
 bin/test/
+tmp/
+.vscode/
 settings-example.json
 test.cmd
 tsconfig.json
 tsd.json
+out.nex
