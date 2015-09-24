@@ -41,9 +41,7 @@ export var defaultManifest = {
             {
                 "InstallationTarget": [
                     {
-                        "$": {
-                            "Id": "Microsoft.VisualStudio.Services"
-                        }
+                      
                     }
                 ]
             }

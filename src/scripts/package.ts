@@ -54,6 +54,14 @@ export module Package {
 	}
 	
 	/**
+	 * Describes an installation target
+	 */
+	export interface InstallationTargetDeclaration {		
+		id: string;
+		version?: string;
+	}
+	
+	/**
 	 * Describes a file in a manifest
 	 */
 	export interface FileDeclaration {
@@ -455,6 +463,18 @@ export module Package {
 							vsoManifest.contributionTypes = [];
 						}
 						vsoManifest.contributionTypes = vsoManifest.contributionTypes.concat(value);
+					}
+					break;
+				case "targets": 
+					if (_.isArray(value)) {
+						value.forEach((target: InstallationTargetDeclaration) => {
+							vsixManifest.PackageManifest.Installation[0].InstallationTarget.push({
+								"$": {
+									"Id": target.id,
+									"Version": target.version
+								}
+							});	
+						});
 					}
 					break;
 				case "screenshots": 
