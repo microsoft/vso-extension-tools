@@ -6,7 +6,7 @@ import errHandler = require("./errorhandler");
 import fs = require("fs");
 import inquirer = require("inquirer");
 import log = require("./logger");
-import package = require("./package");
+import _package = require("./package");
 import path = require("path");
 import program = require("commander");
 import publish = require("./publish");
@@ -34,11 +34,11 @@ module App {
 	
 	function doPackageCreate(settings: settings.PackageSettings): Q.Promise<string> {
 		log.info("Begin package creation", 1);
-		let merger = new package.Package.Merger(settings);
+		let merger = new _package.Package.Merger(settings);
 		log.info("Merge partial manifests", 2);
 		return merger.merge().then((vsixComponents) => {
 			log.success("Merged successfully");
-			let vsixWriter = new package.Package.VsixWriter(vsixComponents.vsoManifest, vsixComponents.vsixManifest, vsixComponents.files);
+			let vsixWriter = new _package.Package.VsixWriter(vsixComponents.vsoManifest, vsixComponents.vsixManifest, vsixComponents.files);
 			log.info("Beginning writing VSIX", 2);
 			return vsixWriter.writeVsix(settings.outputPath).then((outPath: string) => {
 				log.info("VSIX written to: %s", 3, outPath);

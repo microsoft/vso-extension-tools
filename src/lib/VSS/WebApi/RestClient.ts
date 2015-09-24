@@ -316,7 +316,7 @@ export class VssHttpClient {
             areaLocationsPromise = deferred.promise;
 
             let requestUrl = this.rootRequestPath + VssHttpClient.APIS_RELATIVE_PATH + "/" + area;
-            this._issueRequest({uri: requestUrl, type: "OPTIONS" }).spread((response, body) => {
+            this._issueRequest({uri: requestUrl, method: "OPTIONS" }).spread((response, body) => {
                 let locationsResult = JSON.parse(body);
                 let locationsLookup: VssApiResourceLocationLookup = {};
                 locationsResult.value.forEach((index: number, location: WebApi_Contracts.ApiResourceLocation) => {

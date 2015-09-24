@@ -44,6 +44,14 @@ export module Package {
 	export interface PackageFiles {
 		[path: string]: PackagePart;
 	}
+
+	/**
+	 * Describes a screenshot in the manifest
+	 */
+	export interface ScreenshotDeclaration {		
+		path: string;
+		contentType?: string;
+	}
 	
 	/**
 	 * Describes a file in a manifest
@@ -54,6 +62,7 @@ export module Package {
 		auto?: boolean;
 		path: string;
 		partName: string;
+		addressable?: boolean;
 	}
 	
 	/**
@@ -82,6 +91,8 @@ export module Package {
 	 */
 	export class Merger {
 		private mergeSettings: MergeSettings;
+		
+		private static ICON_TYPES: string[] = [ "Default", "Wide", "Small", "Large" ];
 		
 		private static vsixValidators: {[path: string]: (value) => string} = {
 			"PackageManifest.Metadata[0].Identity[0].$.Id": (value) => {
@@ -367,30 +378,25 @@ export module Package {
 					}
 					break;
 				case "icons":
-					if (_.isString(value["default"])) {
-						let assets = _.get<any>(vsixManifest, "PackageManifest.Assets[0].Asset");
-						let iconPath = value["default"].replace(/\\/g, "/");
-						assets.push({
-							"$": {
-								"Type": "Microsoft.VisualStudio.Services.Icons.Default",
-								"d:Source": "File",
-								"Path": iconPath
+					Merger.ICON_TYPES.forEach((type: string) => {
+						if (_.isString(value[type.toLowerCase()])) {
+							let assets = _.get<any>(vsixManifest, "PackageManifest.Assets[0].Asset");
+							let iconPath = value[type.toLowerCase()].replace(/\\/g, "/");
+							assets.push({
+								"$": {
+									"Type": "Microsoft.VisualStudio.Services.Icons." + type,
+									"d:Source": "File",
+									"Path": iconPath,
+									"Addressable": true
+								}
+							});
+							
+							// Default icon is also the package icon
+							if (type === "Default") {
+								this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].Icon[0]", iconPath, "icons['default']", override);
 							}
-						});
-						
-						// Default icon is also the package icon
-						this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].Icon[0]", iconPath, "icons['default']", override);
-					}
-					if (_.isString(value["wide"])) {
-						let assets = _.get<any>(vsixManifest, "PackageManifest.Assets[0].Asset");
-						assets.push({
-							"$": {
-								"Type": "Microsoft.VisualStudio.Services.Icons.Wide",
-								"d:Source": "File",
-								"Path": value["wide"].replace(/\\/g, "/")
-							}
-						});
-					}
+						}	
+					});
 					break;
 				case "manifestversion":
 					let version = value;
@@ -426,6 +432,7 @@ export module Package {
 				case "tags":
 					this.handleDelimitedList(value, vsixManifest, "PackageManifest.Metadata[0].Tags[0]");
 					break;
+				case "flags":
 				case "vsoflags":
 				case "galleryflags":
 					// Gallery Flags are space-separated since it's a Flags enum.
@@ -450,6 +457,30 @@ export module Package {
 						vsoManifest.contributionTypes = vsoManifest.contributionTypes.concat(value);
 					}
 					break;
+				case "screenshots": 
+					if (_.isArray(value)) {
+						var screenshotIndex: any = 1;
+						value.forEach((asset: ScreenshotDeclaration) => {
+							let assetPath = asset.path.replace(/\\/g, "/");
+							if (!packageFiles[assetPath]) {
+								packageFiles[assetPath] = {
+									partName: assetPath
+								};
+							}
+							if (asset.contentType) {
+								packageFiles[assetPath].contentType = asset.contentType;
+							}							
+							vsixManifest.PackageManifest.Assets[0].Asset.push({
+								"$": {
+									"Type": "Microsoft.VisualStudio.Services.Screenshots." + (screenshotIndex++),
+									"d:Source": "File",
+									"Path": assetPath,
+									"Addressable": "true"
+								}
+							});
+						});
+					}
+					break;												
 				case "files": 
 					if (_.isArray(value)) {
 						value.forEach((asset: FileDeclaration) => {
@@ -467,7 +498,8 @@ export module Package {
 									"$": {
 										"Type": asset.assetType,
 										"d:Source": "File",
-										"Path": assetPath
+										"Path": assetPath,
+										"Addressable": asset.addressable
 									}
 								});
 							}
@@ -638,9 +670,7 @@ export module Package {
 				vsix.file(VsixWriter.CONTENT_TYPES_FILENAME, contentTypesXml);
 				let buffer = vsix.generate({
 					type: "nodebuffer",
-					compression: "DEFLATE",
-					compressionOptions: { level: 9 },
-					platform: process.platform
+					compression: "DEFLATE"
 				});
 				log.debug("Writing vsix to: %s", outputPath);
 				
