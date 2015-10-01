@@ -613,12 +613,12 @@ export module Package {
 				case "links": 
 					if (_.isObject(value)) {
 						Object.keys(value).forEach((linkType) => {
-							let url = _.get<string>(value, linkType + ".url");
+							let url = _.get<string>(value, linkType + ".uri") || _.get<string>(value, linkType + ".url");
 							if (url) {
 								let linkTypeCased = _.capitalize(_.camelCase(linkType));
 								this.addProperty(vsixManifest, "Microsoft.VisualStudio.Services.Links." + linkTypeCased, url);
 							} else {
-								log.warn("URL property not found for link: '%s'... ignoring.", linkType);
+								log.warn("'uri' property not found for link: '%s'... ignoring.", linkType);
 							}
 						});
 					}
@@ -673,6 +673,7 @@ export module Package {
 					this.handleDelimitedList(value, vsixManifest, "PackageManifest.Metadata[0].Categories[0]");
 					break;
 				case "baseuri":
+				case "baseurl":
 					this.singleValueProperty(vsoManifest, "baseUri", value, key, override);
 					break;
 				case "contributions":
