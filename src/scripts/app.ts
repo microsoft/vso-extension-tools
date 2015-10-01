@@ -7,7 +7,7 @@ import fs = require("fs");
 import inquirer = require("inquirer");
 import loc = require("./loc");
 import log = require("./logger");
-import package = require("./package");
+import pkg = require("./package");
 import path = require("path");
 import program = require("commander");
 import publish = require("./publish");
@@ -37,11 +37,11 @@ module App {
 	
 	function doPackageCreate(settings: settings.PackageSettings): Q.Promise<string> {
 		log.info("Begin package creation", 1);
-		let merger = new package.Package.Merger(settings);
+		let merger = new pkg.Package.Merger(settings);
 		log.info("Merge partial manifests", 2);
 		return merger.merge().then((vsixComponents) => {
 			log.success("Merged successfully");
-			let vsixWriter = new package.Package.VsixWriter(settings, vsixComponents);
+			let vsixWriter = new pkg.Package.VsixWriter(settings, vsixComponents);
 			log.info("Beginning writing VSIX", 2);
 			return vsixWriter.writeVsix().then((outPath: string) => {
 				log.info("VSIX written to: %s", 3, outPath);
@@ -177,7 +177,7 @@ module App {
 	export function genResources(generatedResjsonPath: string, options: settings.CommandLineOptions) {
 		return settings.resolveSettings(options, defaultSettings).then((settings) => {
 			log.info("Begin resource generation", 1);
-			let merger = new package.Package.Merger(settings.package);
+			let merger = new pkg.Package.Merger(settings.package);
 			log.info("Merge partial manifests", 2);
 			return merger.merge().then((vsixComponents) => {
 				let resFilePath = path.resolve(settings.package.root, generatedResjsonPath);
