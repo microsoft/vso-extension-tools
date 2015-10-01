@@ -5,8 +5,9 @@ import chalk = require("chalk");
 import errHandler = require("./errorhandler");
 import fs = require("fs");
 import inquirer = require("inquirer");
+import loc = require("./loc");
 import log = require("./logger");
-import _package = require("./package");
+import pkg = require("./package");
 import path = require("path");
 import program = require("commander");
 import publish = require("./publish");
@@ -20,7 +21,9 @@ module App {
 			root: process.cwd(),
 			manifestGlobs: ["vss-extension.json"],
 			outputPath: "{auto}",
-			overrides: null
+			overrides: null,
+			locRoot: null,
+			resjsonPath: null
 		},
 		publish: {
 			galleryUrl: "https://app.market.visualstudio.com",
@@ -34,13 +37,13 @@ module App {
 	
 	function doPackageCreate(settings: settings.PackageSettings): Q.Promise<string> {
 		log.info("Begin package creation", 1);
-		let merger = new _package.Package.Merger(settings);
+		let merger = new pkg.Package.Merger(settings);
 		log.info("Merge partial manifests", 2);
 		return merger.merge().then((vsixComponents) => {
 			log.success("Merged successfully");
-			let vsixWriter = new _package.Package.VsixWriter(vsixComponents.vsoManifest, vsixComponents.vsixManifest, vsixComponents.files);
+			let vsixWriter = new pkg.Package.VsixWriter(settings, vsixComponents);
 			log.info("Beginning writing VSIX", 2);
-			return vsixWriter.writeVsix(settings.outputPath).then((outPath: string) => {
+			return vsixWriter.writeVsix().then((outPath: string) => {
 				log.info("VSIX written to: %s", 3, outPath);
 				return outPath;
 			});
@@ -170,6 +173,21 @@ module App {
 			log.success("Successfully upgraded manifest to M85. Result written to %s", outPath);
 		}).catch(errHandler.errLog);
 	}
+	
+	export function genResources(generatedResjsonPath: string, options: settings.CommandLineOptions) {
+		return settings.resolveSettings(options, defaultSettings).then((settings) => {
+			log.info("Begin resource generation", 1);
+			let merger = new pkg.Package.Merger(settings.package);
+			log.info("Merge partial manifests", 2);
+			return merger.merge().then((vsixComponents) => {
+				let resFilePath = path.resolve(settings.package.root, generatedResjsonPath);
+				log.info("Writing resources to '%s'", 2, resFilePath);
+				return loc.LocPrep.writeResourceFile(resFilePath, vsixComponents.resources.combined).then(() => resFilePath);
+			});
+		}).then((outPath) => {
+			log.success("Wrote resources to '%s'", outPath);
+		}).catch(errHandler.errLog);
+	}
 }
 
 let version = process.version.split(".");
@@ -179,7 +197,7 @@ if (parseInt(version[1], 10) < 12 && version[0] === "v0") {
 }
 
 program
-	.version("0.4.14")
+	.version("0.4.16")
 	.option("--fiddler", "Use the fiddler proxy for REST API calls.")
 	.option("--nologo", "Suppress printing the VSET logo.")
 	.option("--debug", "Print debug log messages.")
@@ -197,6 +215,7 @@ program
 	.option("-i, --override <overrides_JSON>", "Specify a JSON string to override anything in the manifests.")
 	.option("-p, --publisher <publisher>", "Specify/override the publisher of the extension.")
 	.option("-e, --extension <extension_id>", "Specify/override the extension id of the extension.")
+	.option("-l, --loc-root <loc_root>", "Specify the root for localization files (see README for more info). [en-US]")	
 	.action(App.createPackage);
 	
 program
@@ -213,6 +232,7 @@ program
 	.option("-t, --token <token>", "Specify your personal access token.")
 	.option("-w, --share-with <share_with>", "Comma-separated list of accounts to share the extension with after it is published.")
 	.option("-s, --settings <settings_path>", "Specify the path to a settings file. [./settings.vset.json]")
+	.option("-l, --loc-root <loc_root>", "Specify the root for localization files (see README for more info). [en-US]")
 	.action(App.publishVsix);
 	
 program
@@ -271,6 +291,15 @@ program
 	.description("Convert a manifest to the new contribution model introduced in M85.")
 	.option("-f, --force-overwrite", "Overwrite an existing file, or overwrite the original manifest when output_path is not specified.")
 	.action(App.toM85);
+	
+program
+	.command("genresources <generated_resjson_path>")
+	.description("Generate a resjson file for an extension, which is used for string localization.")
+	.option("-r, --root <root>", "Specify the root for files in your vsix package. [.]")
+	.option("-m, --manifest-glob <glob>", "Specify the pattern for manifest files to join. [vss-extension.json]")
+	.option("-s, --settings <settings_path>", "Specify the path to a settings file. [./settings.vset.json]")
+	.option("-i, --override <overrides_JSON>", "Specify a JSON string to override anything in the manifests.")
+	.action(App.genResources);
 
 program.parse(process.argv);
 

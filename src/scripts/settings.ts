@@ -25,6 +25,7 @@ export interface PackageSettings {
 	manifestGlobs: string[];
 	outputPath: string;
 	overrides: any;
+	locRoot: string;
 }
 export interface CommandLineOptions {
 	root?: string;
@@ -40,6 +41,8 @@ export interface CommandLineOptions {
 	unshareWith?: string;
 	publisher?: string;
 	extension?: string;
+	locRoot?: string;
+	writeResjson?: string;
 }
 
 
@@ -56,6 +59,12 @@ export function resolveSettings(options: CommandLineOptions, defaults?: AppSetti
 	}
 	if (options.root) {
 		_.set(passedOptions, "package.root", options.root);
+	}
+	if (options.writeResjson) {
+		_.set(passedOptions, "package.resjsonPath", options.writeResjson);
+	}
+	if (options.locRoot) {
+		_.set(passedOptions, "package.locRoot", options.locRoot);
 	}
 	if (options.settings) {
 		settingsPath = options.settings;

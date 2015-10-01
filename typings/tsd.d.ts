@@ -17,3 +17,4 @@
 /// <reference path="winreg/winreg.d.ts" />
 /// <reference path="tmp/tmp.d.ts" />
 /// <reference path="mkdirp/mkdirp.d.ts" />
+/// <reference path="onecolor/onecolor.d.ts" />

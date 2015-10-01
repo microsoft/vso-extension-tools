@@ -37,6 +37,7 @@ export function errLog(arg) {
 	if (typeof arg === "string") {
 		log.error(arg);
 	} else if (typeof arg.toString === "function") {
+		log.debug(arg.stack);
 		log.error(arg.toString());
 	} else if (typeof arg === "object") {
 		try {

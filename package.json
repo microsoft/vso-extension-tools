@@ -14,7 +14,7 @@
     "url": "https://github.com/Microsoft/vso-extension-tools.git"
   },
   "scripts": {
-    "prepublish": "gulp compile",
+    "prepublish": "gulp build",
     "test": "mocha"
   },
   "dependencies": {
@@ -24,7 +24,8 @@
     "inquirer": "0.8.5",
     "jszip": "2.5.0",
     "lodash": "3.9.3",
-    "mkdirp": "^0.5.1",
+    "mkdirp": "0.5.1",
+    "onecolor": "2.5.0",
     "q": "1.4.1",
     "request": "2.58.0",
     "tmp": "0.0.26",

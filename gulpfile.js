@@ -15,7 +15,7 @@ var sources = [
 	'typings/**/*.ts'
 ];
 
-gulp.task('compile', ['clean'], function () {
+gulp.task('build', ['clean'], function () {
 	var typescriptsFilter = filter('**/*.ts', { restore: true });
 	
 	return gulp.src(sources, { base: '.' })
