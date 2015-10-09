@@ -197,7 +197,7 @@ if (parseInt(version[1], 10) < 12 && version[0] === "v0") {
 }
 
 program
-	.version("0.4.17")
+	.version("0.4.18")
 	.option("--fiddler", "Use the fiddler proxy for REST API calls.")
 	.option("--nologo", "Suppress printing the VSET logo.")
 	.option("--debug", "Print debug log messages.")

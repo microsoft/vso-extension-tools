@@ -516,6 +516,9 @@ export module Package {
 			if (type === "Microsoft.VisualStudio.Services.Icons.Default") {
 				manifest.PackageManifest.Metadata[0].Icon = [cleanAssetPath];
 			}
+			if (type === "Microsoft.VisualStudio.Services.Content.License") {
+				manifest.PackageManifest.Metadata[0].License = [cleanAssetPath];
+			}
 		}
 		
 		private mergeKey(key: string, value: any, vsoManifest: any, vsixManifest: any, packageFiles: PackageFiles, override: boolean): void {
@@ -570,16 +573,24 @@ export module Package {
 						});
 					}
 					break;
-				case "details":
-					if (_.isObject(value) && value.path) {
-						let fileDecl: FileDeclaration = {
-							path: value.path,
-							addressable: true,
-							assetType: "Microsoft.VisualStudio.Services.Content.Details",
-							contentType: value.contentType
-						};
-						this.addAsset(fileDecl, vsixManifest, packageFiles);
-					}
+				case "content":
+					Object.keys(value).forEach((key) => {
+						let contentKey = _.startCase(key.toLowerCase());
+						if (value[key].path) {
+							let fileDecl: FileDeclaration = {
+								path: value[key].path,
+								addressable: true,
+								assetType: "Microsoft.VisualStudio.Services.Content." + contentKey,
+								partName: value[key].path
+							};
+							if (value[key].contentType) {
+								fileDecl.contentType = value[key].contentType;
+							}
+							this.addAsset(fileDecl, vsixManifest, packageFiles);
+						} else {
+							log.warn("Did not find 'path' property for content item '%s'. Ignoring.", key);
+						}
+					});
 					break;
 				case "manifestversion":
 					let version = value;
@@ -869,8 +880,13 @@ export module Package {
 				
 				let partName = Merger.cleanAssetPath(this.files[file].partName); 
 				let fsPath = path.join(root, file);
-				
-				vsix.file(VsixWriter.toZipItemName(partName), fs.readFileSync(path.join(root, file)));
+				let fContents = null;
+				try {
+					fContents = fs.readFileSync(fsPath);
+				} catch (e) {
+					throw "No such file '" + fsPath + "'. Check the location of this file and update the manifest if necessary.";
+				}
+				vsix.file(VsixWriter.toZipItemName(partName), fContents);
 				if (this.files[file].contentType) {
 					overrides[partName] = this.files[file];
 				}
