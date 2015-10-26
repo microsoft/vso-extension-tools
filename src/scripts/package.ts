@@ -61,12 +61,41 @@ export module Package {
 	 * Describes a file in a manifest
 	 */
 	export interface FileDeclaration {
+		/**
+		 * The type of this asset (Type attribute in the vsixmanifest's <Asset> entry)
+		 * Also used as the addressable name of this asset (if addressable = true)
+		 */
 		assetType?: string;
+		
+		/**
+		 * Manually specified content-type/mime-type. Otherwise, try to automatically determine.
+		 */
 		contentType?: string;
+		
+		/**
+		 * True means that this file was added indirectly, e.g. from a directory. Files that have
+		 * auto = true will be overridden by files with the same path that do not.
+		 */
 		auto?: boolean;
+		
+		/**
+		 * Path to the file on disk
+		 */
 		path: string;
+		
+		/** 
+		 * Path/file name to the file in the archive
+		 */
 		partName?: string;
+		
+		/**
+		 * Language of this asset, if any
+		 */
 		lang?: string;
+		
+		/**
+		 * If true, this asset will be addressable via a public gallery endpoint
+		 */
 		addressable?: boolean;
 	}
 	
@@ -337,17 +366,17 @@ export module Package {
 						}
 						
 						// Expand any directories listed in the files array
-						let pathToFileDeclarations = (fsPath: string, root: string): FileDeclaration[] => {
+						let pathToFileDeclarations = (fsPath: string, root: string, addressable: boolean): FileDeclaration[] => {
 							let files: FileDeclaration[] = [];
 							if (fs.lstatSync(fsPath).isDirectory()) {
 								log.debug("Path '%s` is a directory. Adding all contained files (recursive).", fsPath);
 								fs.readdirSync(fsPath).forEach((dirChildPath) => {
 									log.debug("-- %s", dirChildPath);
-									files = files.concat(pathToFileDeclarations(path.join(fsPath, dirChildPath), root));
+									files = files.concat(pathToFileDeclarations(path.join(fsPath, dirChildPath), root, addressable));
 								});
 							} else {
 								let relativePath = path.relative(root, fsPath);
-								files.push({path: relativePath, partName: relativePath, auto: true});
+								files.push({path: relativePath, partName: relativePath, auto: true, addressable: addressable});
 							}
 							return files;
 						};
@@ -357,7 +386,7 @@ export module Package {
 								let fileDecl: FileDeclaration = partial["files"][i];
 								let fsPath = path.join(vsoManifest.__meta_root, fileDecl.path);
 								if (fs.lstatSync(fsPath).isDirectory()) {
-									Array.prototype.splice.apply(partial["files"], (<any[]>[i, 1]).concat(pathToFileDeclarations(fsPath, vsoManifest.__meta_root)));
+									Array.prototype.splice.apply(partial["files"], (<any[]>[i, 1]).concat(pathToFileDeclarations(fsPath, vsoManifest.__meta_root, fileDecl.addressable)));
 								}
 							}
 						}
@@ -470,6 +499,9 @@ export module Package {
 		 */
 		private addAsset(file: FileDeclaration, manifest: any, packageFiles: PackageFiles) {
 			file.path = Merger.cleanAssetPath(file.path);
+			if (file.addressable && !file.assetType) {
+				file.assetType = VsixWriter.toZipItemName(file.path);
+			}
 			this.addFile(file, packageFiles);
 			if (file.assetType) {
 				this.addAssetToManifest(manifest, file.path, file.assetType, file.addressable, file.lang);
