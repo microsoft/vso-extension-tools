@@ -241,11 +241,18 @@ export module Package {
 				}
 				let validCategories = [
 					"Build and release",
+					"Code",
+					"Collaborate",
 					"Collaboration",
 					"Customer support",
+					"Developer samples",
+					"Insights",
+					"Integrate",
+					"Plan and track",
 					"Planning",
 					"Productivity",
 					"Sync and integration",
+					"Test",
 					"Testing"
 				];
 				_.remove(categories, c => !c);
