@@ -702,8 +702,9 @@ export module Package {
 				case "publisher":
 					this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].Identity[0].$.Publisher", value, key, override);
 					break;
-				case "releasenotes":
+				case "longdescription":
 					this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].ReleaseNotes[0]", value, key, override);
+					this.singleValueProperty(vsixManifest, "PackageManifest.Metadata[0].LongDescription[0]", value, key, override);
 					break;
 				case "scopes":
 					if (_.isArray(value)) {
