@@ -249,7 +249,7 @@ export module Package {
 					"Integrate",
 					"Plan and track",
                     "Other",
-					"Test",
+					"Test"
 				];
 				_.remove(categories, c => !c);
 				let badCategories = categories.filter(c => validCategories.indexOf(c) < 0);
