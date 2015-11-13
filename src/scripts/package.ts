@@ -240,20 +240,16 @@ export module Package {
 					return "For now, extensions are limited to a single category.";
 				}
 				let validCategories = [
+                    "Administration",
 					"Build and release",
 					"Code",
 					"Collaborate",
-					"Collaboration",
-					"Customer support",
 					"Developer samples",
 					"Insights",
 					"Integrate",
 					"Plan and track",
-					"Planning",
-					"Productivity",
-					"Sync and integration",
+                    "Other",
 					"Test",
-					"Testing"
 				];
 				_.remove(categories, c => !c);
 				let badCategories = categories.filter(c => validCategories.indexOf(c) < 0);
