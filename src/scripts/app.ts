@@ -26,7 +26,7 @@ export module App {
 			resjsonPath: null
 		},
 		publish: {
-			galleryUrl: "https://app.market.visualstudio.com",
+			galleryUrl: "https://marketplace.visualstudio.com",
 			token: null,
 			vsixPath: null,
 			publisher: null,
@@ -197,7 +197,7 @@ if (parseInt(version[1], 10) < 12 && version[0] === "v0") {
 }
 
 program
-	.version("0.4.21")
+	.version("0.4.22")
 	.option("--fiddler", "Use the fiddler proxy for REST API calls.")
 	.option("--nologo", "Suppress printing the VSET logo.")
 	.option("--debug", "Print debug log messages.")
