@@ -1063,6 +1063,7 @@ export module Package {
 					let extName = path.extname(f);
 					if (!extName && !overrides[f]) {
 						log.warn("File %s does not have an extension, and its content-type is not declared. Defaulting to application/octet-stream.", path.resolve(f));
+						overrides[f] = {partName: f, contentType: "application/octet-stream"};
 					}
 					if (overrides[f]) {
 						// If there is an override for this file, ignore its extension
