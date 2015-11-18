@@ -1,4 +1,36 @@
 # Visual Studio Online Extension Tool
+
+## Deprecated
+
+This tool is now deprecated and all functionality has migrated to the TFS Cross Platform Command Line Interface (TFX-CLI). TFX-CLI is available on Github and NPM.
+
+### Migration Information
+
+Nearly all functionality from VSET has been ported to TFX-CLI. Here are a few key differences:
+
+1. Commands are namespaced in TFX-CLI. For example, Extensions-commands follow the form `tfx extension <command> [--argument(s)]`, and Extension Publisher commands follow the form `tfx extension publisher <command> [--argument(s)]`. 
+2. There are no short-hand arguments. For example, `-o` in VSET would need to be passed as `--output-path` in TFX-CLI.
+3. For any *required* parameter that is not specified when the command is invoked, the user will be interactively prompted for the parameter value.
+4. Localization support is not yet ported, but will come soon.
+
+#### Quick start with TFX-CLI
+
+| VSET        | TFX-CLI           |
+| ------------- |-------------|
+| `vset package`      | `tfx extension create` |
+| `vset package -m myextension.json`      | `tfx extension create --manifest-globs myextension.json` |
+| `vset publish --token <personal_access_token>` | `tfx extension publish --token <personal_access_token>`  |
+| `vset publish --token <personal_access_token> --save` | `tfx extension publish --token <personal_access_token> --save`  |
+| `vset create-publisher fabrikam "Fabrikam, Inc." "My Fabrikam Publisher" --token <personal_access_token>` | `tfx extension publisher create --token <personal_access_token>` (other values are prompted interactively)  |
+
+#### Help
+
+To get a list of commands, simply type the command namespace with `--help`, e.g. `tfx --help`, or `tfx extension --help`.
+
+To get help for any individual command, type `--help` after the command, e.g. `tfx extension create --help`.
+
+## == Below this point is documentation for VSET only. ==
+
 This utility packs and publishes extensions for Visual Studio Online, as well as performs applicable upgrades to existing extensions.
 
 # Usage
