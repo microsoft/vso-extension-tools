@@ -2,7 +2,7 @@
 
 ## Deprecated
 
-This tool is now deprecated and all functionality has migrated to the TFS Cross Platform Command Line Interface (TFX-CLI). TFX-CLI is available on Github and NPM.
+This tool is now deprecated and functionality has migrated to the TFS Cross Platform Command Line Interface (TFX-CLI). TFX-CLI is available on Github and NPM.
 
 ### Migration Information
 
@@ -29,7 +29,7 @@ To get a list of commands, simply type the command namespace with `--help`, e.g.
 
 To get help for any individual command, type `--help` after the command, e.g. `tfx extension create --help`.
 
-## == Below this point is documentation for VSET only. ==
+## == Below this point is documentation for VSET only.
 
 This utility packs and publishes extensions for Visual Studio Online, as well as performs applicable upgrades to existing extensions.
 
