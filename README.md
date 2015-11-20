@@ -2,7 +2,7 @@
 
 ## Deprecated
 
-This tool is now deprecated and functionality has migrated to the TFS Cross Platform Command Line Interface (TFX-CLI). TFX-CLI is available on Github and NPM.
+This tool is now deprecated and functionality has migrated to the TFS Cross Platform Command Line Interface (TFX-CLI). TFX-CLI is available on [Github](https://github.com/Microsoft/tfs-cli) and [NPM](http://npmjs.com/package/tfx-cli).
 
 ### Migration Information
 
