@@ -6,9 +6,6 @@ import program = require("commander");
 
 // Log the header.
 if (!program["nologo"]) {
-	console.log();
-	warn("This tool is deprecated. Please switch to TFX-CLI. See http://npmjs.com/package/vset for more info.");
-	console.log();
 	console.log("=== Visual Studio Online Extension Tool ===");
 }
 
