@@ -1156,7 +1156,7 @@ export module Package {
 										} 
 										hitCounters[magicMime].push(fileName);
 									} else {
-										if (!overrides[fileName]) {
+										if (overrides[fileName] && !overrides[fileName].contentType) {
 											overrides[fileName].contentType = magicMime;
 										}
 									}
@@ -1185,7 +1185,9 @@ export module Package {
 								return;
 							}
 							hitCounts[type].forEach((fileName) => {
-								overrides[fileName].contentType = type;
+								if (overrides[fileName]) {
+									overrides[fileName].contentType = type;
+								}
 							});
 						});
 						contentTypes.Types.Default.push({
