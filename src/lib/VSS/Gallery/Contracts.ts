@@ -102,7 +102,7 @@ export enum ExtensionQueryFlags {
      */
     IncludeVersions = 1,
     /**
-     * IncludeFiles will return information about which files were found within the extension that were stored independant of the manifest. When asking for files, versions will be included as well since files are returned as a property of the versions.  These files can be retrieved using the path to the file without requiring the entire manifest be downloaded.
+     * IncludeFiles will return information about which files were found within the extension that were stored independent of the manifest. When asking for files, versions will be included as well since files are returned as a property of the versions.  These files can be retrieved using the path to the file without requiring the entire manifest be downloaded.
      */
     IncludeFiles = 2,
     /**
